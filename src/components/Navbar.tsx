@@ -75,6 +75,12 @@ const Navbar = () => {
             >
               About Oregent
             </button>
+            <button
+              onClick={() => scrollToSection("contact")}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300"
+            >
+              Contact
+            </button>
           </div>
         </div>
 
