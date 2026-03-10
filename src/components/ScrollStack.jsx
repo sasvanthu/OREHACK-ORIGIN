@@ -61,14 +61,25 @@ const ScrollStack = ({
     }
   }, [useWindowScroll]);
 
+  // Walk the offsetParent chain to get document-flow position
+  // (immune to CSS transforms, unlike getBoundingClientRect)
+  const getDocumentOffset = useCallback((el) => {
+    let top = 0;
+    let current = el;
+    while (current) {
+      top += current.offsetTop;
+      current = current.offsetParent;
+    }
+    return top;
+  }, []);
+
   const recalculateOffsets = useCallback(() => {
     const cards = cardsRef.current;
     if (!cards.length) return;
 
     cardOffsetsRef.current = cards.map(card => {
       if (useWindowScroll) {
-        const rect = card.getBoundingClientRect();
-        return rect.top + window.scrollY;
+        return getDocumentOffset(card);
       }
       return card.offsetTop;
     });
@@ -79,10 +90,10 @@ const ScrollStack = ({
 
     if (endElement) {
       endOffsetRef.current = useWindowScroll
-        ? endElement.getBoundingClientRect().top + window.scrollY
+        ? getDocumentOffset(endElement)
         : endElement.offsetTop;
     }
-  }, [useWindowScroll]);
+  }, [useWindowScroll, getDocumentOffset]);
 
   const updateCardTransforms = useCallback(() => {
     if (!cardsRef.current.length || isUpdatingRef.current) return;
@@ -189,7 +200,6 @@ const ScrollStack = ({
 
   const rafIdRef = useRef(null);
   const rafLoopRef = useRef(null);
-  const lastScrollYRef = useRef(0);
 
   const handleScroll = useCallback(() => {
     if (rafIdRef.current) return;
@@ -199,14 +209,11 @@ const ScrollStack = ({
     });
   }, [updateCardTransforms]);
 
-  // rAF loop for window scroll mode to catch Lenis-interpolated frames
+  // rAF loop for window scroll mode — runs every frame unconditionally
+  // to stay in sync with Lenis smooth-scroll interpolation
   const startRAFLoop = useCallback(() => {
     const loop = () => {
-      const currentY = window.scrollY;
-      if (currentY !== lastScrollYRef.current) {
-        lastScrollYRef.current = currentY;
-        updateCardTransforms();
-      }
+      updateCardTransforms();
       rafLoopRef.current = requestAnimationFrame(loop);
     };
     rafLoopRef.current = requestAnimationFrame(loop);
