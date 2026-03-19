@@ -522,7 +522,7 @@ const HackathonAdminDashboard = () => {
                               >
                                 <motion.div
                                   className="w-2 h-2 rounded-full bg-primary"
-                                  animate={{ pulse: [1, 1.2, 1] }}
+                                  animate={{ scale: [1, 1.2, 1] }}
                                   transition={{ duration: 1.5, repeat: Infinity }}
                                 />
                                 <span className="text-xs font-semibold text-primary">Queued</span>
@@ -589,7 +589,7 @@ const HackathonAdminDashboard = () => {
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-accent transition-all group"
               >
                 <span>View Leaderboard</span>
-                <motion.span group-hover={{ x: 5 }} className="group-hover:translate-x-1 transition-transform">→</motion.span>
+                <motion.span whileHover={{ x: 5 }} className="group-hover:translate-x-1 transition-transform">→</motion.span>
               </Link>
             </motion.div>
           </motion.div>

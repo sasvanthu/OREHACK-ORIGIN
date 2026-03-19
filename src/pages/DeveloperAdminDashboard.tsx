@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, Zap, BarChart3, FileText, Activity, Clock } from "lucide-react";
+import { TrendingUp, Zap, BarChart3, FileText, Activity, Clock, CheckCircle } from "lucide-react";
 
 const tabs = ["System", "Hackathons", "Evaluation", "Logs"];
 
@@ -196,7 +196,7 @@ const DeveloperAdminDashboard = () => {
                 initial={{ opacity: 0, y: 30, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ delay: 0.3, duration: 0.7, ease: "easeOut" }}
-                whileHover={{ borderColor: "hsl(var(--primary) / 0.4)", shadow: "0 20px 40px rgba(59, 130, 246, 0.15)" }}
+                whileHover={{ borderColor: "hsl(var(--primary) / 0.4)", boxShadow: "0 20px 40px rgba(59, 130, 246, 0.15)" }}
               >
                 <motion.div 
                   className="flex items-center justify-between mb-6"
