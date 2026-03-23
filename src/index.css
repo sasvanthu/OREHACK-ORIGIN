@@ -55,7 +55,6 @@
 
 html.lenis,
 html.lenis body {
-html.lenis, html.lenis body {
   height: auto;
 }
 
@@ -87,7 +86,6 @@ html.lenis, html.lenis body {
   input,
   textarea,
   select {
-  button, a, input, textarea, select {
     cursor: none !important;
   }
 }
