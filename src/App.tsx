@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Lenis from "lenis";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -41,10 +42,6 @@ const App = () => {
 
   useEffect(() => {
     const lenis = new Lenis({
-      duration: 0.2,
-const App = () => {
-  useEffect(() => {
-    const lenis = new Lenis({
       duration: 1.6,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
@@ -71,6 +68,7 @@ const App = () => {
         {/* The cinematic loading screen (unmounts after it finishes) */}
         <LoadingScreen onReveal={() => setIsRevealed(true)} />
 
+        <SmoothCursor />
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -89,27 +87,7 @@ const App = () => {
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <SmoothCursor />
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/hackathon/:hackathonId/login" element={<HackathonLogin />} />
-          <Route path="/hackathon/:hackathonId/submit" element={<SubmissionPage />} />
-          <Route path="/hackathon/:hackathonId/leaderboard" element={<Leaderboard />} />
-          <Route path="/admin/auth" element={<AdminAuth />} />
-          <Route path="/admin/hackathon" element={<HackathonAdminDashboard />} />
-          <Route path="/admin/developer" element={<DeveloperAdminDashboard />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
   );
-
 };
 
 export default App;
