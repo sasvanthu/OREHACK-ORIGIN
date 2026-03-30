@@ -15,6 +15,7 @@ import Leaderboard from "./pages/Leaderboard";
 import AdminAuth from "./pages/AdminAuth";
 import HackathonAdminDashboard from "./pages/HackathonAdminDashboard";
 import DeveloperAdminDashboard from "./pages/DeveloperAdminDashboard";
+import CreateHackathon from "./pages/CreateHackathon";
 import { LoadingScreen } from "./components/LoadingScreen";
 
 const queryClient = new QueryClient();
@@ -179,6 +180,7 @@ const App = () => {
               <Route path="/hackathon/:hackathonId/leaderboard" element={<Leaderboard />} />
               <Route path="/admin/auth" element={<AdminAuth />} />
               <Route path="/admin/hackathon" element={<HackathonAdminDashboard />} />
+              <Route path="/admin/hackathon/create" element={<CreateHackathon />} />
               <Route path="/admin/developer" element={<DeveloperAdminDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

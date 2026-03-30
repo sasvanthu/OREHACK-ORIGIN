@@ -1,21 +1,55 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 
 const AdminAuth = () => {
   const navigate = useNavigate();
   const [role, setRole] = useState<"hackathon" | "developer" | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [teamName, setTeamName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !role) return;
+    const normalizedTeamName = teamName.trim();
+    if (!email || !password || !role || !normalizedTeamName) return;
+
+    if (normalizedTeamName.length < 2 || normalizedTeamName.length > 60) {
+      setError("Team name must be between 2 and 60 characters.");
+      return;
+    }
+
+    setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
+
+    const { data, error: loginError } = await supabase
+      .from("users")
+      .select("id, role, is_active")
+      .eq("email", email.trim().toLowerCase())
+      .eq("password", password)
+      .eq("role", role === "hackathon" ? "hackathon_admin" : "developer_admin")
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
     setLoading(false);
-    navigate(role === "hackathon" ? "/admin/hackathon" : "/admin/developer");
+
+    if (loginError) {
+      setError(loginError.message || "Authentication failed. Please try again.");
+      return;
+    }
+
+    if (!data) {
+      setError("Invalid admin credentials or role.");
+      return;
+    }
+
+    navigate(role === "hackathon" ? "/admin/hackathon" : "/admin/developer", {
+      state: { teamName: normalizedTeamName },
+    });
   };
 
   const roleVariants = {
@@ -152,6 +186,18 @@ const AdminAuth = () => {
               </button>
 
               <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Team Name</label>
+                <motion.input
+                  type="text"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-300"
+                  placeholder="Your team name"
+                  whileFocus={{ borderColor: "hsl(var(--primary))" }}
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Email</label>
                 <motion.input
                   type="email"
@@ -184,6 +230,7 @@ const AdminAuth = () => {
               >
                 {loading ? "Authenticating…" : `Sign in as ${role === "hackathon" ? "Hackathon" : "Developer"} Admin`}
               </motion.button>
+              {error && <p className="text-xs text-destructive">{error}</p>}
             </motion.form>
           )}
         </div>

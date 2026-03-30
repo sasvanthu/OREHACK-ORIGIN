@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import "../components/Stepper.css";
+import { supabase } from "@/lib/supabase";
 
 type Phase = "form" | "processing" | "done";
 
@@ -21,17 +22,22 @@ const submissionNotes = [
 const SubmissionPage = () => {
   const { hackathonId } = useParams();
   const location = useLocation();
-  const teamId = (location.state as { teamId?: string })?.teamId || "Unknown";
+  const navigationState = (location.state as { teamId?: string; teamName?: string } | null) || null;
+  const teamId = navigationState?.teamId || "Unknown";
+  const [teamName, setTeamName] = useState(navigationState?.teamName || "");
   const [repoUrl, setRepoUrl] = useState("");
   const [problemStatement, setProblemStatement] = useState("");
   const [phase, setPhase] = useState<Phase>("form");
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const hackathonName = hackathonId?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Hackathon";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+
     if (!repoUrl.trim()) {
       setError("Repository URL is required.");
       return;
@@ -40,8 +46,41 @@ const SubmissionPage = () => {
       setError("Please enter a valid public GitHub URL.");
       return;
     }
+    if (!teamName.trim()) {
+      setError("Team name is required.");
+      return;
+    }
+    if (teamId === "Unknown") {
+      setError("Team ID is missing. Please login again.");
+      return;
+    }
     setError("");
+    setSubmitting(true);
     setPhase("processing");
+
+    const submissionPayload = {
+      hackathon_slug: hackathonId || "",
+      team_id: teamId,
+      team_name: teamName.trim(),
+      repository_url: repoUrl.trim(),
+      problem_statement: problemStatement.trim() || null,
+      status: "queued",
+      score: null,
+      submitted_at: new Date().toISOString(),
+    };
+
+    const { error: submissionError } = await supabase.from("submissions").insert(submissionPayload);
+    if (submissionError) {
+      setError(submissionError.message || "Submission failed. Please try again.");
+      setPhase("form");
+      setSubmitting(false);
+      return;
+    }
+
+    const { error: incrementError } = await supabase.rpc("increment_hackathon_submissions", { p_slug: hackathonId || "" });
+    if (incrementError) {
+      console.error("Failed to increment hackathon submission count:", incrementError.message);
+    }
 
     for (let i = 0; i < processingSteps.length; i++) {
       setCurrentStep(i);
@@ -49,6 +88,7 @@ const SubmissionPage = () => {
     }
 
     setPhase("done");
+    setSubmitting(false);
   };
 
   return (
@@ -96,6 +136,10 @@ const SubmissionPage = () => {
               <p className="mt-1 font-semibold text-foreground">{teamId}</p>
             </div>
             <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Team Name</p>
+              <p className="mt-1 font-semibold text-foreground">{teamName || "Not set"}</p>
+            </div>
+            <div>
               <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Hackathon</p>
               <p className="mt-1 font-semibold text-foreground">{hackathonName}</p>
             </div>
@@ -128,11 +172,24 @@ const SubmissionPage = () => {
                 <p className="mb-2 text-xs uppercase tracking-[0.22em] text-muted-foreground">Submission Desk</p>
                 <h1 className="mb-1 text-2xl font-bold text-foreground">{hackathonName}</h1>
                 <p className="text-sm text-muted-foreground">
-                  Team: <span className="font-semibold text-foreground">{teamId}</span>
+                  Team: <span className="font-semibold text-foreground">{teamName || teamId}</span> ({teamId})
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    Team Name <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background/70 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-all duration-300 focus:border-primary/60 focus:bg-background focus:shadow-[0_0_0_4px_hsl(var(--primary)/0.12)]"
+                    placeholder="Enter your team name"
+                  />
+                </div>
+
                 <div>
                   <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                     GitHub Repository URL <span className="text-destructive">*</span>
@@ -209,7 +266,7 @@ const SubmissionPage = () => {
               <div className="relative z-10">
               <h2 className="mb-2 text-center text-xl font-bold text-foreground">Processing Submission</h2>
               <p className="mb-6 text-center text-sm text-muted-foreground">Running repository checks and preparing evaluation pipeline.</p>
-              <p className="mb-6 text-center text-xs uppercase tracking-[0.16em] text-muted-foreground">Team {teamId} is in queue</p>
+              <p className="mb-6 text-center text-xs uppercase tracking-[0.16em] text-muted-foreground">Team {teamName || teamId} is in queue</p>
               
               <div className="space-y-4">
                 {processingSteps.map((step, index) => {
@@ -312,7 +369,7 @@ const SubmissionPage = () => {
               </div>
               <h2 className="mb-2 text-xl font-bold text-foreground">Submission Registered</h2>
               <p className="mb-4 text-sm text-muted-foreground">Your repository has been queued for evaluation.</p>
-              <p className="mb-5 text-xs uppercase tracking-[0.16em] text-muted-foreground">Team {teamId} • {hackathonName}</p>
+              <p className="mb-5 text-xs uppercase tracking-[0.16em] text-muted-foreground">Team {teamName || teamId} • {hackathonName}</p>
               <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
                 Status: Queued
