@@ -22,9 +22,19 @@ const submissionNotes = [
 const SubmissionPage = () => {
   const { hackathonId } = useParams();
   const location = useLocation();
+  const storedSessionRaw = typeof window !== "undefined" ? localStorage.getItem("orehack_team_session") : null;
+  let storedSession: { hackathonId?: string; teamId?: string; teamName?: string } | null = null;
+  if (storedSessionRaw) {
+    try {
+      storedSession = JSON.parse(storedSessionRaw) as { hackathonId?: string; teamId?: string; teamName?: string };
+    } catch {
+      storedSession = null;
+    }
+  }
   const navigationState = (location.state as { teamId?: string; teamName?: string } | null) || null;
-  const teamId = navigationState?.teamId || "Unknown";
-  const [teamName, setTeamName] = useState(navigationState?.teamName || "");
+  const effectiveSession = navigationState || (storedSession?.hackathonId === hackathonId ? storedSession : null);
+  const teamId = effectiveSession?.teamId || "Unknown";
+  const [teamName, setTeamName] = useState(effectiveSession?.teamName || "");
   const [repoUrl, setRepoUrl] = useState("");
   const [problemStatement, setProblemStatement] = useState("");
   const [phase, setPhase] = useState<Phase>("form");
@@ -59,27 +69,39 @@ const SubmissionPage = () => {
     setPhase("processing");
 
     const submissionPayload = {
-      hackathon_slug: hackathonId || "",
-      team_id: teamId,
+      teamid: teamId,
       team_name: teamName.trim(),
-      repository_url: repoUrl.trim(),
-      problem_statement: problemStatement.trim() || null,
-      status: "queued",
-      score: null,
-      submitted_at: new Date().toISOString(),
+      repo_url: repoUrl.trim(),
+      problem_statement: problemStatement.trim() || "",
+      progress: "queued",
     };
 
-    const { error: submissionError } = await supabase.from("submissions").insert(submissionPayload);
+    let { error: submissionError } = await supabase
+      .from("submissions")
+      .upsert(submissionPayload, { onConflict: "teamid" });
+
+    // Backward-compat fallback for legacy quoted table/column names.
+    if (submissionError?.code === "PGRST205") {
+      const legacyPayload = {
+        teamID: teamId,
+        Team_Name: teamName.trim(),
+        Repo_URL: repoUrl.trim(),
+        Problem_Statement: problemStatement.trim() || "",
+        Progress: "queued",
+      };
+
+      const legacyResult = await supabase
+        .from("Submissions")
+        .upsert(legacyPayload, { onConflict: "teamID" });
+
+      submissionError = legacyResult.error;
+    }
+
     if (submissionError) {
       setError(submissionError.message || "Submission failed. Please try again.");
       setPhase("form");
       setSubmitting(false);
       return;
-    }
-
-    const { error: incrementError } = await supabase.rpc("increment_hackathon_submissions", { p_slug: hackathonId || "" });
-    if (incrementError) {
-      console.error("Failed to increment hackathon submission count:", incrementError.message);
     }
 
     for (let i = 0; i < processingSteps.length; i++) {

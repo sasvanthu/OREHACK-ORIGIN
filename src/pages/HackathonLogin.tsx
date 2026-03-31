@@ -35,19 +35,31 @@ const HackathonLogin = () => {
     setLoading(true);
     setAuthState("checking");
 
-    const { error: upsertError } = await supabase.from("users").upsert(
-      {
-        email: `${normalizedTeamId.toLowerCase()}@participant.orehack.local`,
-        password: "participant",
-        role: "participant",
-        team_id: normalizedTeamId,
-        is_active: true,
-      },
-      { onConflict: "email" },
-    );
+    const { data: participant, error: loginError } = await supabase
+      .from("users")
+      .select("team_id, team_name")
+      .eq("team_id", normalizedTeamId)
+      .eq("password", password.trim())
+      .maybeSingle();
 
-    if (upsertError) {
-      setError(upsertError.message || "Login failed. Please try again.");
+    if (loginError) {
+      setError(loginError.message || "Login failed. Please try again.");
+      setAuthState("idle");
+      setLoading(false);
+      setShakeTick((prev) => prev + 1);
+      return;
+    }
+
+    if (!participant) {
+      setError("Invalid Team ID or password.");
+      setAuthState("idle");
+      setLoading(false);
+      setShakeTick((prev) => prev + 1);
+      return;
+    }
+
+    if (participant.team_name?.trim().toLowerCase() !== normalizedTeamName.toLowerCase()) {
+      setError("Team name does not match this Team ID.");
       setAuthState("idle");
       setLoading(false);
       setShakeTick((prev) => prev + 1);
@@ -57,9 +69,17 @@ const HackathonLogin = () => {
     await new Promise((r) => setTimeout(r, 700));
     setAuthState("granted");
     await new Promise((r) => setTimeout(r, 1900));
+    localStorage.setItem(
+      "orehack_team_session",
+      JSON.stringify({
+        hackathonId,
+        teamId: participant.team_id,
+        teamName: participant.team_name || normalizedTeamName,
+      }),
+    );
     setLoading(false);
     navigate(`/hackathon/${hackathonId}/submit`, {
-      state: { teamId: normalizedTeamId, teamName: normalizedTeamName },
+      state: { teamId: participant.team_id, teamName: participant.team_name || normalizedTeamName },
     });
   };
 
