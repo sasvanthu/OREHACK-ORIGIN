@@ -69,33 +69,16 @@ const SubmissionPage = () => {
     setPhase("processing");
 
     const submissionPayload = {
-      teamid: teamId,
-      team_name: teamName.trim(),
-      repo_url: repoUrl.trim(),
-      problem_statement: problemStatement.trim() || "",
-      progress: "queued",
+      teamID: teamId,
+      Team_Name: teamName.trim(),
+      Repo_URL: repoUrl.trim(),
+      Problem_Statement: problemStatement.trim() || "",
+      Progress: "queued",
     };
 
     let { error: submissionError } = await supabase
       .from("submissions")
-      .upsert(submissionPayload, { onConflict: "teamid" });
-
-    // Backward-compat fallback for legacy quoted table/column names.
-    if (submissionError?.code === "PGRST205") {
-      const legacyPayload = {
-        teamID: teamId,
-        Team_Name: teamName.trim(),
-        Repo_URL: repoUrl.trim(),
-        Problem_Statement: problemStatement.trim() || "",
-        Progress: "queued",
-      };
-
-      const legacyResult = await supabase
-        .from("Submissions")
-        .upsert(legacyPayload, { onConflict: "teamID" });
-
-      submissionError = legacyResult.error;
-    }
+      .upsert(submissionPayload, { onConflict: "teamID" });
 
     if (submissionError) {
       setError(submissionError.message || "Submission failed. Please try again.");

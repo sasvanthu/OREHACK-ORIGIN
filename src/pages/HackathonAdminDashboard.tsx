@@ -55,6 +55,11 @@ type SubmissionItem = {
   evaluation_timestamp: string | null;
 };
 
+const normalizeStatus = (value: unknown): SubmissionItem["status"] => {
+  if (value === "evaluated" || value === "rejected") return value;
+  return "queued";
+};
+
 const sectionTransition = { duration: 0.4, ease: "easeOut" as const };
 const contentVariants = {
   hidden: { opacity: 0, y: 10 },
@@ -104,8 +109,7 @@ const HackathonAdminDashboard = () => {
 
       const { data, error: fetchError } = await supabase
         .from("submissions")
-        .select("id, team_id, team_name, repository_url, submitted_at, score, status, final_score, max_total, technical_score, max_technical, innovation_score, max_innovation, completeness_score, max_completeness, technical_breakdown, innovation_breakdown, completeness_breakdown, evaluation_timestamp")
-        .order("submitted_at", { ascending: false })
+        .select("*")
         .limit(50);
 
       if (!mounted) return;
@@ -116,7 +120,29 @@ const HackathonAdminDashboard = () => {
         return;
       }
 
-      setSubmissions((data || []) as SubmissionItem[]);
+      const normalized = (data || []).map((row: Record<string, unknown>, index: number) => ({
+        id: String(row.teamID ?? row.TeamID ?? row.id ?? index),
+        team_id: String(row.teamID ?? row.TeamID ?? row.id ?? ""),
+        team_name: (row.Team_Name as string | null) ?? null,
+        repository_url: ((row.Repo_URL as string | undefined) || "") as string,
+        submitted_at: "",
+        score: typeof row.Total_Scores === "number" ? row.Total_Scores : null,
+        status: normalizeStatus(row.Progress),
+        final_score: typeof row.Total_Scores === "number" ? row.Total_Scores : null,
+        max_total: 100,
+        technical_score: typeof row.Tech_Scores === "number" ? row.Tech_Scores : null,
+        max_technical: 65,
+        innovation_score: typeof row.Innov_Scores === "number" ? row.Innov_Scores : null,
+        max_innovation: 25,
+        completeness_score: typeof row.Completeness_Scores === "number" ? row.Completeness_Scores : null,
+        max_completeness: 10,
+        technical_breakdown: null,
+        innovation_breakdown: null,
+        completeness_breakdown: null,
+        evaluation_timestamp: null,
+      })) as SubmissionItem[];
+
+      setSubmissions(normalized);
       setLoading(false);
     };
 
@@ -185,8 +211,8 @@ const HackathonAdminDashboard = () => {
     id: submission.id,
     team: submission.team_name?.trim() || submission.team_id,
     repo: submission.repository_url,
-    time: new Date(submission.submitted_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    score: submission.score ?? 0,
+    time: submission.status === "evaluated" ? "Evaluated" : submission.status === "rejected" ? "Rejected" : "Queued",
+    score: submission.final_score ?? submission.score ?? 0,
     status: submission.status === "evaluated" ? "Evaluated" : submission.status === "rejected" ? "Rejected" : "Queued",
     rank: index + 1,
   }));

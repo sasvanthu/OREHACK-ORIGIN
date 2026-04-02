@@ -6,13 +6,7 @@ import { supabase } from "@/lib/supabase";
 type LeaderboardRow = {
   team: string;
   score: number;
-  submittedAt: string;
-};
-
-const formatTime = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "--";
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  status: string;
 };
 
 const Leaderboard = () => {
@@ -33,11 +27,8 @@ const Leaderboard = () => {
 
       const { data, error: fetchError } = await supabase
         .from("submissions")
-        .select("team_name, team_id, score, submitted_at, status")
-        .eq("hackathon_slug", hackathonId)
-        .in("status", ["evaluated", "queued"])
-        .order("score", { ascending: false, nullsFirst: false })
-        .order("submitted_at", { ascending: true });
+        .select("Team_Name, TeamID, Total_Scores, Progress")
+        .order("Total_Scores", { ascending: false, nullsFirst: false });
 
       if (!mounted) return;
 
@@ -48,9 +39,9 @@ const Leaderboard = () => {
       }
 
       const mapped = (data || []).map((row) => ({
-        team: row.team_name?.trim() || row.team_id || "Unknown",
-        score: Number(row.score || 0),
-        submittedAt: row.submitted_at || "",
+        team: row.Team_Name?.trim() || row.TeamID || "Unknown",
+        score: Number(row.Total_Scores || 0),
+        status: row.Progress || "queued",
       }));
 
       setRows(mapped);
@@ -92,7 +83,7 @@ const Leaderboard = () => {
                 <th className="text-left text-xs font-medium text-muted-foreground px-6 py-3">Rank</th>
                 <th className="text-left text-xs font-medium text-muted-foreground px-6 py-3">Team</th>
                 <th className="text-right text-xs font-medium text-muted-foreground px-6 py-3">Score</th>
-                <th className="text-right text-xs font-medium text-muted-foreground px-6 py-3">Time</th>
+                <th className="text-right text-xs font-medium text-muted-foreground px-6 py-3">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -124,7 +115,7 @@ const Leaderboard = () => {
                     <span className="text-sm font-mono text-foreground">{row.score.toFixed(1)}</span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <span className="text-xs text-muted-foreground">{formatTime(row.submittedAt)}</span>
+                    <span className="text-xs text-muted-foreground">{row.status}</span>
                   </td>
                 </motion.tr>
               ))}

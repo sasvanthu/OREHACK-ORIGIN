@@ -21,9 +21,10 @@ const HackathonLogin = () => {
     e.preventDefault();
     const normalizedTeamId = teamId.trim();
     const normalizedTeamName = teamName.trim();
+    const normalizedPassword = password.trim();
     const idValid = /^[A-Za-z0-9_-]{3,24}$/.test(normalizedTeamId);
     const nameValid = normalizedTeamName.length >= 2 && normalizedTeamName.length <= 60;
-    const passValid = password.trim().length >= 6;
+    const passValid = normalizedPassword.length >= 6;
 
     if (!idValid || !nameValid || !passValid) {
       setError("Enter a valid Team ID, Team Name, and a password with at least 6 characters.");
@@ -35,11 +36,10 @@ const HackathonLogin = () => {
     setLoading(true);
     setAuthState("checking");
 
-    const { data: participant, error: loginError } = await supabase
-      .from("users")
-      .select("team_id, team_name")
-      .eq("team_id", normalizedTeamId)
-      .eq("password", password.trim())
+    const { data: submission, error: loginError } = await supabase
+      .from("submissions")
+      .select("teamID, Team_Name, password")
+      .eq("teamID", normalizedTeamId)
       .maybeSingle();
 
     if (loginError) {
@@ -50,21 +50,44 @@ const HackathonLogin = () => {
       return;
     }
 
-    if (!participant) {
-      setError("Invalid Team ID or password.");
+    if (!submission) {
+      setError("Invalid Team ID, Team Name, or password.");
       setAuthState("idle");
       setLoading(false);
       setShakeTick((prev) => prev + 1);
       return;
     }
 
-    if (participant.team_name?.trim().toLowerCase() !== normalizedTeamName.toLowerCase()) {
+    const dbTeamName = ((submission.Team_Name as string | undefined) || "").trim();
+    const dbPassword = ((submission.password as string | undefined) || "").trim();
+
+    if (dbTeamName.toLowerCase() !== normalizedTeamName.toLowerCase()) {
       setError("Team name does not match this Team ID.");
       setAuthState("idle");
       setLoading(false);
       setShakeTick((prev) => prev + 1);
       return;
     }
+
+    if (dbPassword !== normalizedPassword) {
+      setError("Password does not match this Team ID.");
+      setAuthState("idle");
+      setLoading(false);
+      setShakeTick((prev) => prev + 1);
+      return;
+    }
+
+    const resolvedTeamId =
+      (submission.teamID as string | undefined) || normalizedTeamId;
+
+    const resolvedTeamName = dbTeamName || normalizedTeamName;
+
+    await supabase
+      .from("submissions")
+      .update({
+        Team_Name: resolvedTeamName,
+      })
+      .eq("teamID", resolvedTeamId);
 
     await new Promise((r) => setTimeout(r, 700));
     setAuthState("granted");
@@ -73,13 +96,13 @@ const HackathonLogin = () => {
       "orehack_team_session",
       JSON.stringify({
         hackathonId,
-        teamId: participant.team_id,
-        teamName: participant.team_name || normalizedTeamName,
+        teamId: resolvedTeamId,
+        teamName: resolvedTeamName,
       }),
     );
     setLoading(false);
     navigate(`/hackathon/${hackathonId}/submit`, {
-      state: { teamId: participant.team_id, teamName: participant.team_name || normalizedTeamName },
+      state: { teamId: resolvedTeamId, teamName: resolvedTeamName },
     });
   };
 

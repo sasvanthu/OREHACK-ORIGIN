@@ -143,12 +143,11 @@ const DeveloperAdminDashboard = () => {
   const loadDashboardData = useCallback(async () => {
     setSyncError("");
 
-    const [hackathonsRes, submissionsRes, usersRes] = await Promise.all([
+    const [hackathonsRes, usersRes] = await Promise.all([
       supabase
         .from("hackathons")
         .select("name, slug, theme, start_date, duration_hours, status")
         .order("created_at", { ascending: false }),
-      supabase.from("submissions").select("hackathon_slug, status, score"),
       supabase.from("users").select("id", { count: "exact", head: true }),
     ]);
 
@@ -158,31 +157,15 @@ const DeveloperAdminDashboard = () => {
       return;
     }
 
-    const submissionBySlug = new Map<string, { submissions: number; evaluated: number }>();
-    (submissionsRes.data || []).forEach((submission) => {
-      const slug = submission.hackathon_slug || "";
-      if (!slug) return;
-
-      const current = submissionBySlug.get(slug) || { submissions: 0, evaluated: 0 };
-      current.submissions += 1;
-      if (submission.status === "evaluated" || submission.score !== null) {
-        current.evaluated += 1;
-      }
-
-      submissionBySlug.set(slug, current);
-    });
-
     const mappedHackathons: HackathonItem[] = (hackathonsRes.data || []).map((hackathon) => {
-      const metrics = submissionBySlug.get(hackathon.slug || "") || { submissions: 0, evaluated: 0 };
-
       return {
         name: hackathon.name || "Untitled Hackathon",
         slug: hackathon.slug || slugify(hackathon.name || "hackathon"),
         theme: hackathon.theme || "General",
         startDate: hackathon.start_date || "",
         durationHours: Number(hackathon.duration_hours || 24),
-        submissions: metrics.submissions,
-        evaluated: metrics.evaluated,
+        submissions: 0,
+        evaluated: 0,
         status: hackathon.status === "scheduled" ? "scheduled" : "live",
       };
     });
