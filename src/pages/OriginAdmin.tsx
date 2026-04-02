@@ -66,6 +66,8 @@ const OriginAdmin = () => {
   const [editForm, setEditForm] = useState<SubmissionRecord>(emptyForm);
   const [newForm, setNewForm] = useState<SubmissionRecord>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [marksSort, setMarksSort] = useState<"none" | "asc" | "desc">("none");
+  const [problemSort, setProblemSort] = useState<"none" | "asc" | "desc">("none");
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,7 +109,7 @@ const OriginAdmin = () => {
 
       const { data, error: fetchError } = await supabase
         .from("submissions")
-        .select("teamID, Team_Name, Problem_Statement, Repo_URL, Progress, Total_Scores, Tech_Scores, Innov_Scores, Completeness_Scores, Reasoning, password")
+        .select("teamID, Team_Name, Problem_Statement, Repo_URL, Progress, Total_Scores, Tech_Scores, Innov_Scores, Completeness_Scores, password")
         .limit(500);
 
       if (!mounted) return;
@@ -141,6 +143,46 @@ const OriginAdmin = () => {
     const queued = submissions.filter((row) => row.Progress.toLowerCase() === "queued").length;
     return { total, completed, queued };
   }, [submissions]);
+
+  const sortedSubmissions = useMemo(() => {
+    const rows = [...submissions];
+
+    const compareScore = (left: SubmissionRecord, right: SubmissionRecord) => {
+      if (marksSort === "none") return 0;
+      return marksSort === "desc"
+        ? (right.Total_Scores ?? -Infinity) - (left.Total_Scores ?? -Infinity)
+        : (left.Total_Scores ?? Infinity) - (right.Total_Scores ?? Infinity);
+    };
+
+    const compareProblem = (left: SubmissionRecord, right: SubmissionRecord) => {
+      if (problemSort === "none") return 0;
+      const leftProblem = left.Problem_Statement.trim().toLowerCase();
+      const rightProblem = right.Problem_Statement.trim().toLowerCase();
+      return problemSort === "asc"
+        ? leftProblem.localeCompare(rightProblem)
+        : rightProblem.localeCompare(leftProblem);
+    };
+
+    rows.sort((left, right) => {
+      if (problemSort !== "none" && marksSort !== "none") {
+        const problemCompare = compareProblem(left, right);
+        if (problemCompare !== 0) return problemCompare;
+        return compareScore(left, right);
+      }
+
+      if (problemSort !== "none") {
+        return compareProblem(left, right);
+      }
+
+      if (marksSort !== "none") {
+        return compareScore(left, right);
+      }
+
+      return left.teamID.localeCompare(right.teamID);
+    });
+
+    return rows;
+  }, [submissions, marksSort, problemSort]);
 
   const onEditChange = (field: keyof SubmissionRecord, value: string) => {
     setEditForm((prev) => ({
@@ -303,7 +345,30 @@ const OriginAdmin = () => {
         </section>
 
         <section className="rounded-2xl border border-border/70 bg-card/40 p-4">
-          <p className="mb-3 text-sm font-semibold text-foreground">Add New Row</p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-foreground">Add New Row</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">Sort by</span>
+              <select
+                value={marksSort}
+                onChange={(e) => setMarksSort(e.target.value as typeof marksSort)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="desc">Marks: High to Low</option>
+                <option value="asc">Marks: Low to High</option>
+                <option value="none">Marks: None</option>
+              </select>
+              <select
+                value={problemSort}
+                onChange={(e) => setProblemSort(e.target.value as typeof problemSort)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="asc">Problem Statement: A to Z</option>
+                <option value="desc">Problem Statement: Z to A</option>
+                <option value="none">Problem Statement: None</option>
+              </select>
+            </div>
+          </div>
           <div className="grid gap-3 md:grid-cols-4">
             <input value={newForm.teamID} onChange={(e) => onNewChange("teamID", e.target.value)} placeholder="Team ID" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
             <input value={newForm.Team_Name} onChange={(e) => onNewChange("Team_Name", e.target.value)} placeholder="Team Name" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
@@ -342,7 +407,7 @@ const OriginAdmin = () => {
                   </tr>
                 )}
 
-                {!loading && submissions.map((row) => {
+                {!loading && sortedSubmissions.map((row) => {
                   const submitted = row.Repo_URL.trim().length > 0;
                   const statusLabel = submitted ? "Completed" : "In Progress";
                   const statusClass = submitted ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-300";
@@ -396,7 +461,7 @@ const OriginAdmin = () => {
                   );
                 })}
 
-                {!loading && submissions.length === 0 && (
+                {!loading && sortedSubmissions.length === 0 && (
                   <tr>
                     <td colSpan={10} className="px-4 py-8 text-center text-sm text-muted-foreground">No submissions found.</td>
                   </tr>

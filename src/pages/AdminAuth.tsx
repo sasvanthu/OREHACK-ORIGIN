@@ -37,7 +37,7 @@ const AdminAuth = () => {
         <section className="surface-elevated rounded-2xl border border-amber-300/30 bg-amber-500/10 p-8 text-center">
           <p className="text-sm font-semibold uppercase tracking-widest text-amber-200">Contact Admin</p>
           <h1 className="mt-3 text-4xl md:text-5xl font-black text-amber-50 leading-tight">
-            This Portal Is For OREHACK Origin Only
+            OREGENT - OREHACK loads
           </h1>
           <p className="mt-4 text-base text-amber-100/90">
             For any other hackathon, please contact the admin team.

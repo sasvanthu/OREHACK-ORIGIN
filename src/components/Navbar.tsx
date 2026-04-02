@@ -11,7 +11,8 @@ const Navbar = () => {
   const navigate = useNavigate();
   const [adminSequence, setAdminSequence] = useState<string[]>([]);
   const CONTACT_ADMIN_TARGET = "12345678";
-  const ORIGIN_ADMIN_TARGET = "1234";
+  const ORIGIN_ADMIN_TARGET = "192421";
+  const ORIGIN_ADMIN_SESSION_KEY = "orehack_origin_admin_auth";
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -26,6 +27,7 @@ const Navbar = () => {
         const nextSequence = next.join("");
 
         if (nextSequence.endsWith(ORIGIN_ADMIN_TARGET)) {
+          localStorage.removeItem(ORIGIN_ADMIN_SESSION_KEY);
           setTimeout(() => navigate("/originadmin"), 100);
           return [];
         }
