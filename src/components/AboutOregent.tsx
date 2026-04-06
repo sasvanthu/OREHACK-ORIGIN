@@ -1,671 +1,942 @@
 /**
- * AboutPage.jsx  — Oregent About Section
+ * AboutPage — Oregent About Section (Definitive Version)
  *
- * Requirements met:
- * ✅ Exactly 7 cards  (removed "Platform Migration" & "40+ Integrations")
- * ✅ Layout matches Image 2  (tall left/right col + tall center hero)
- * ✅ Code block is FIXED HEIGHT — typing never pushes layout
- * ✅ Colors from Image 1 (dark navy #0d1120)
- * ✅ All original animations preserved (GSAP 3-phase + scroll blur + hover 3D)
- * ✅ Scroll-triggered: animation fires when About section enters viewport
- * ✅ Works as a self-contained section inside your full webpage
+ * Grid: 3 columns, NO spanning
+ *   Col1: A (50%) + D (50%)
+ *   Col2: B (33%) + E (33%) + G (33%)
+ *   Col3: C (50%) + F (50%)
  *
- * Setup:
- *   npm install gsap
- *   Place logo at  src/assets/oregent-logo.png
- *   import logoSrc from "../assets/oregent-logo.png";
+ * Animation sequence:
+ *   1. Wrapper fades in
+ *   2. Hero card (E) zooms out from scale(3.5) → center position over 2s
+ *   3. Remaining cards pop up staggered center→outward with blur+scale+spring
+ *   4. Animated rotating border glow sweep on each card
+ *   5. Light sweep diagonal glint across each card
+ *   6. Ambient purple glow pulses on hero card
+ *   7. Sonar ping radial pulse on hero card
+ *
+ * Card layout (after all swaps):
+ *   A = Startup Development (col1 top)
+ *   B = Analytics & Growth (col2 top) — no orbit, text only
+ *   C = Product & Strategy (col3 top) — search pill with shimmer
+ *   D = Our Team (col1 bottom) — orbit animation around logo
+ *   E = Hero / Everything in One Place (col2 center) — sonar ping
+ *   F = Oregent Teach (col3 bottom) — counter ticker, hover-reverse scroll
+ *   G = AI-Powered Insights (col2 bottom) — thinking dots, scrolling strip
+ *
+ * Features:
+ *   - No emojis — all SVG icons and logo-based visuals
+ *   - No "See More" links
+ *   - Capitalized first letters in search queries
+ *   - Thinking dots animation before each typed query
+ *   - Counter ticker animating to 160+ on card G enter
+ *   - Hover-reverse scroll on strip
+ *   - 3D hover tilt on all cards
  */
 
-import { useEffect, useRef } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useEffect, useRef, useState, useCallback } from "react";
 
-gsap.registerPlugin(ScrollTrigger);
-
-// ── swap this for your actual import once logo is in assets ──
 const logoSrc = "/oregent-logo.png";
 
-// ─────────────────────────────────────────────────────────────
-// SCOPED CSS  (prefixed .og-about so nothing leaks to your page)
-// ─────────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════
+   CSS — all animation via keyframes
+   ═══════════════════════════════════════════ */
 const CSS = `
-/* ── reset inside section only ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+
 .og-about *, .og-about *::before, .og-about *::after {
   box-sizing: border-box; margin: 0; padding: 0;
 }
-
 .og-about {
-  --bg:        #020203;
-  --card:      #0d1120;
-  --card-teal: #061822;
-  --card-navy: #06101a;
-  --border:    rgba(255,255,255,0.07);
-  --purple:    #7c3aed;
-  --p2:        #9f60ff;
-  --p3:        #c084fc;
-  --text:      #eef0f8;
-  --muted:     #7a869a;
-  --grid:      rgba(255,255,255,0.024);
-
-  font-family: 'Inter', sans-serif;
+  --bg:     #000000;
+  --card:   #0a0a0b;
+  --border: rgba(255,255,255,0.08);
+  --text:   #ffffff;
+  --muted:  #9ca3af;
+  --purple: #7c3aed;
+  --blue:   #3b82f6;
+  font-family: 'Inter', -apple-system, sans-serif;
   color: var(--text);
   background: var(--bg);
+  padding: 80px 24px 60px;
+  position: relative;
+  overflow: hidden;
+}
+.og-about::before {
+  content: '';
+  position: absolute; inset: 0;
   background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
   background-size: 60px 60px;
-  padding: 72px 28px 56px;
+  pointer-events: none;
+}
+.og-wrap { max-width: 1200px; margin: 0 auto; position: relative; z-index: 1; }
+
+/* ═══════════════════════════════════════
+   ZOOM WRAPPER — Simple immediate fade
+   ═══════════════════════════════════════ */
+.og-zoom {
+  opacity: 0;
+  will-change: opacity;
+}
+.og-zoom.og-anim {
+  animation: fastFade 0.2s forwards;
+}
+@keyframes fastFade {
+  to { opacity: 1; }
 }
 
-/* dot texture */
-.og-about .card-tex::after {
-  content: ''; position: absolute; inset: 0;
-  background-image: radial-gradient(rgba(255,255,255,.022) 1px, transparent 1px);
-  background-size: 22px 22px;
-  pointer-events: none; z-index: 0;
-}
-.og-about .card-tex > * { position: relative; z-index: 1; }
-
-/* ── BENTO GRID ──
-   Image-2 layout:
-     Col 1 (tall)  |  Col 2 (stack)   |  Col 3 (tall)
-     ─────────────────────────────────────────────────
-     Startup Dev   |  Product&Strat   |  Analytics
-     (spans 2 rows)|  AI Insights     |  (spans 2 rows)
-                   |  Hero (tall)     |
-     Our Team      |  Hero (tall)     |  Our Team
-*/
-.og-wrap {
-  max-width: 1240px;
-  margin: 0 auto;
-}
-
+/* ═══════════════════════════════════════
+   BENTO GRID — 3 cols, 6-row trick
+   Side cols: 2 cards × 3 rows each = 50%
+   Center col: 3 cards × 2 rows each = 33%
+   ═══════════════════════════════════════ */
 .og-bento {
   display: grid;
-  /* 3 equal columns */
-  grid-template-columns: repeat(3, 1fr);
-  /* rows: top-short | middle | hero-bottom */
-  grid-template-rows: 310px 295px 295px;
-  gap: 10px;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: repeat(6, 1fr);
+  gap: 8px;
+  height: 790px;
 }
 
-/* grid-area assignments */
-#bc-startup   { grid-area: 1 / 1 / 2 / 2; }  /* col1 row1 */
-#bc-product   { grid-area: 1 / 2 / 2 / 3; }  /* col2 row1 */
-#bc-analytics { grid-area: 1 / 3 / 2 / 4; }  /* col3 row1 */
-#bc-team      { grid-area: 2 / 1 / 3 / 2; }  /* col1 row2 */
-#bc-col2mid   { grid-area: 2 / 2 / 3 / 3; }  /* col2 row2 — stack wrapper */
-#bc-ai        { /* inside col2mid */ }
-#bc-herocard  { /* inside col2mid */ }
-#bc-story     { grid-area: 3 / 1 / 4 / 2; }  /* col1 row3 */
-#bc-hero      { grid-area: 2 / 2 / 4 / 3; }  /* col2 rows 2-3 — tall hero */
-#bc-approach  { grid-area: 2 / 3 / 3 / 4; }  /* col3 row2 */
-#bc-brand     { grid-area: 3 / 3 / 4 / 4; }  /* col3 row3 */
+/* Col 1 — 50/50 */
+.og-c-a { grid-column: 1; grid-row: 1 / 4; }
+.og-c-d { grid-column: 1; grid-row: 4 / 7; }
 
-/* ── GRID ZOOM WRAPPER — starts scaled up, GSAP zooms it out ── */
-.og-bento-wrapper {
-  will-change: transform, opacity, filter;
-  transform-origin: center center;
-}
+/* Col 2 — 33/33/33 */
+.og-c-b { grid-column: 2; grid-row: 1 / 3; }
+.og-c-e { grid-column: 2; grid-row: 3 / 5; }
+.og-c-g { grid-column: 2; grid-row: 5 / 7; }
 
-/* ── CARD BASE ── */
+/* Col 3 — 50/50 */
+.og-c-c { grid-column: 3; grid-row: 1 / 4; }
+.og-c-f { grid-column: 3; grid-row: 4 / 7; }
+
+/* ═══════════════════════════════════════
+   CARD BASE
+   ═══════════════════════════════════════ */
 .og-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
   position: relative;
-  will-change: transform, opacity;
-  transition: border-color .25s;
-  /* GSAP sets initial state — do NOT hide in CSS */
-  transform-origin: center center;
+  will-change: transform, opacity, filter;
+  transition: border-color .3s;
 }
-.og-card:hover { border-color: rgba(124,58,237,.3); }
+.og-card:hover { border-color: rgba(255,255,255,.16); }
 
-/* ── CARD TEXT ── */
-.og-tc { padding: 24px; display: flex; flex-direction: column; height: 100%; }
-.og-title {
-  font-size: 1.04rem; font-weight: 700;
-  letter-spacing: -.015em; margin-bottom: 8px; line-height: 1.3;
-}
-.og-desc {
-  font-size: .78rem; color: var(--muted); line-height: 1.68; flex: 1;
-}
-.og-more {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: .76rem; color: var(--muted); font-weight: 500;
-  text-decoration: none; margin-top: 16px; width: fit-content;
-  transition: gap .18s, color .18s;
-}
-.og-more:hover { gap: 9px; color: var(--text); }
-
-/* glow blob */
-.og-gblob {
-  position: absolute; border-radius: 50%;
-  pointer-events: none; filter: blur(44px); z-index: 0;
-}
-
-/* ────────────────────────────────────────────────────
-   BC-STARTUP  (col1 row1) — code block card
-   FIXED HEIGHT code area so typing never shifts layout
-──────────────────────────────────────────────────── */
-#bc-startup { display: flex; flex-direction: column; }
-.bc-startup-top {
-  padding: 24px 24px 14px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.bc-code-wrap {
-  flex: 1;
-  padding: 12px 14px;
-  position: relative;
-  /* FIXED so typing does NOT grow the card */
-  overflow: hidden;
-  min-height: 0;
-}
-.bc-code-border {
-  position: absolute; inset: 8px;
-  border: 1px solid rgba(86,156,214,.18);
-  border-radius: 6px;
-  background: rgba(86,156,214,.024);
-  pointer-events: none;
-}
-/* The pre is absolutely positioned so it never resizes the card */
-pre.og-code {
+/* ═══════════════════════════════════════
+   ANIMATED BORDER GLOW SWEEP
+   Rotating conic gradient traces card edges
+   ═══════════════════════════════════════ */
+.og-card::before {
+  content: '';
   position: absolute;
-  inset: 8px;
-  font-family: 'Space Mono', monospace;
-  font-size: .65rem; line-height: 1.75; color: #5a6a7a;
-  white-space: pre;
-  padding: 10px 12px;
-  overflow: hidden;          /* clip if content exceeds box */
+  inset: -1px;
+  border-radius: 21px;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--border-angle, 0deg),
+    transparent 0%,
+    transparent 25%,
+    rgba(124, 58, 237, 0.5) 30%,
+    rgba(59, 130, 246, 0.6) 35%,
+    rgba(124, 58, 237, 0.5) 40%,
+    transparent 45%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  z-index: 10;
   pointer-events: none;
+  transition: opacity 0.6s;
+}
+.og-anim .og-card::before {
+  animation: borderSweep 4s linear infinite;
+  opacity: 0;
+}
+.og-anim .og-card.og-card-visible::before {
+  opacity: 1;
+  transition: opacity 1s 0.3s;
+}
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes borderSweep {
+  to { --border-angle: 360deg; }
+}
+
+/* ═══════════════════════════════════════
+   HERO CARD ZOOM OUT
+   Centre card covers 3/4 screen then zooms to position
+   ═══════════════════════════════════════ */
+.og-c-e {
+  transform-origin: center center;
+  z-index: 50;
+  opacity: 0;
+}
+.og-anim .og-c-e {
+  animation: heroZoomOut 2.0s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+}
+@keyframes heroZoomOut {
+  0%   { transform: scale(3.5); opacity: 0; filter: blur(20px); box-shadow: 0 40px 100px rgba(0,0,0,0.8); }
+  10%  { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; filter: blur(0px); box-shadow: none; }
+}
+
+/* ═══════════════════════════════════════
+   OTHER CARDS POP UP — staggered after hero settles
+   ═══════════════════════════════════════ */
+.og-card:not(.og-c-e) {
+  opacity: 0;
+  transform: translateY(160px);
+}
+.og-anim .og-card:not(.og-c-e) {
+  animation: cardSlowPop 1.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.og-anim .og-c-b { animation-delay: 1.0s !important; }
+.og-anim .og-c-g { animation-delay: 1.15s !important; }
+.og-anim .og-c-a { animation-delay: 1.3s !important; }
+.og-anim .og-c-d { animation-delay: 1.45s !important; }
+.og-anim .og-c-c { animation-delay: 1.6s !important; }
+.og-anim .og-c-f { animation-delay: 1.75s !important; }
+
+@keyframes cardSlowPop {
+  0%   { transform: translateY(180px) scale(0.9); opacity: 0; filter: blur(14px); }
+  100% { transform: translateY(0) scale(1); opacity: 1; filter: blur(0px); }
+}
+
+.og-card > div:not(.og-card-glow):not(.og-light-sweep) {
+  opacity: 1;
+  transform: none;
+}
+
+/* Mouse-tracking glow */
+.og-card-glow {
+  position: absolute; inset: 0; border-radius: 20px;
+  background: radial-gradient(500px circle at var(--gx,50%) var(--gy,50%),
+    rgba(124,58,237,.08), transparent 40%);
+  pointer-events: none; z-index: 0;
+  opacity: 0; transition: opacity .4s;
+}
+.og-card:hover .og-card-glow { opacity: 1; }
+
+/* Dot texture */
+.og-tex::after {
+  content: ''; position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none; border-radius: 20px; z-index: 0;
+}
+
+/* ═══ TEXT ═══ */
+.og-inner { padding: 28px; position: relative; z-index: 1; }
+.og-title { font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; margin-bottom: 10px; line-height: 1.25; }
+.og-desc  { font-size: .82rem; color: var(--muted); line-height: 1.7; }
+
+/* ═══ DEV — code block (Card A) ═══ */
+.og-c-a { display: flex; flex-direction: column; }
+.og-c-a .og-inner { padding-bottom: 14px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+.og-code-area { flex: 1; position: relative; overflow: hidden; }
+.og-code-border {
+  position: absolute; inset: 10px;
+  border: 1px solid rgba(86,156,214,.15);
+  border-radius: 8px; background: rgba(86,156,214,.02);
+  pointer-events: none;
+}
+pre.og-code {
+  position: absolute; inset: 10px;
+  font-family: 'Space Mono', monospace;
+  font-size: .6rem; line-height: 1.8; color: #5a6a7a;
+  white-space: pre; padding: 12px 14px;
+  overflow: hidden; pointer-events: none;
 }
 .kw  { color: #c586c0; }
 .tag { color: #569cd6; }
 .atr { color: #9cdcfe; }
 .str { color: #ce9178; }
 .cm  { color: #4a6a4a; }
+.pn  { color: #d4d4d4; }
 .og-cur {
-  display: inline-block; width: 2px; height: 11px;
+  display: inline-block; width: 2px; height: 10px;
   background: #569cd6; vertical-align: middle; margin-left: 1px;
-  animation: og-blink .85s step-end infinite;
+  animation: blink .85s step-end infinite;
 }
-@keyframes og-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-/* ────────────────────────────────────────────────────
-   BC-PRODUCT (col2 row1) — search pill
-──────────────────────────────────────────────────── */
-.og-spill {
-  display: flex; align-items: center; gap: 8px;
-  background: #0a0d1a; border: 1px solid rgba(124,58,237,.22);
-  border-radius: 50px; padding: 9px 14px;
-  box-shadow: 0 0 14px rgba(124,58,237,.16) inset;
+/* ═══ Search pill (Card C — Product & Strategy) ═══ */
+.og-search-wrap { margin-top: 28px; position: relative; z-index: 1; }
+.og-search-glow {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  width: 280px; height: 60px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(124,58,237,.3) 0%, transparent 70%);
+  filter: blur(18px); pointer-events: none;
 }
-.og-spill-ico { color: #2a3040; font-size: .82rem; flex-shrink: 0; }
-.og-spill-txt {
-  font-size: .75rem; color: var(--muted); flex: 1;
-  font-family: 'Inter', sans-serif;
-  /* prevent text from jumping layout */
-  min-height: 1.1em;
+.og-search {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(10,10,20,.9);
+  border: 1px solid rgba(124,58,237,.25);
+  border-radius: 50px; padding: 10px 16px;
+  position: relative; z-index: 1;
+  box-shadow: 0 0 20px rgba(124,58,237,.12), inset 0 0 16px rgba(124,58,237,.08);
+  overflow: hidden;
 }
-.og-spill-go {
-  width: 22px; height: 22px; background: #141828;
-  border: 1px solid #1e2535; border-radius: 50%;
+/* Shimmer sweep across search pill border */
+.og-search::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 50px;
+  padding: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 30%,
+    rgba(124,58,237,0.6) 45%,
+    rgba(59,130,246,0.7) 50%,
+    rgba(124,58,237,0.6) 55%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: pillShimmer 2.5s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes pillShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.og-search-txt { font-size: .78rem; color: var(--muted); flex: 1; min-height: 1.2em; }
+/* Thinking dots — 3 dots pulsing before next query */
+.og-thinking-dots {
+  display: inline-flex; gap: 3px; align-items: center;
+}
+.og-thinking-dots span {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--purple);
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+.og-thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.og-thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotPulse {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.3); }
+}
+.og-search-icons { display: flex; align-items: center; gap: 6px; }
+.og-search-icon {
+  width: 24px; height: 24px; border-radius: 6px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
   display: flex; align-items: center; justify-content: center;
-  font-size: .58rem; color: #3a4a5a; cursor: pointer;
+  font-size: .6rem; color: #555;
 }
+.og-search-icon svg { width: 12px; height: 12px; stroke: #555; fill: none; }
+.og-search-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  display: flex; align-items: center; justify-content: center;
+}
+.og-search-btn svg { width: 14px; height: 14px; stroke: #888; fill: none; }
 
-/* ────────────────────────────────────────────────────
-   BC-ANALYTICS (col3 row1) — floating icons
-──────────────────────────────────────────────────── */
-.og-icons-scene {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  height: 62%; display: flex; align-items: center; justify-content: center;
+/* ═══ Orbit animation (Card D — Our Team) ═══ */
+.og-orbit-scene {
+  position: absolute; bottom: 0; left: 0; right: 0; top: 35%;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
 }
-.og-ig {
+.og-orbit-center {
+  width: 72px; height: 72px; border-radius: 18px;
+  background: linear-gradient(145deg, #0e2060, #1a3aad);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 12px 44px rgba(26,58,173,.5), inset 0 1px 0 rgba(255,255,255,.15);
+  position: relative; z-index: 3;
+}
+.og-orbit-center img { width: 40px; height: 40px; object-fit: contain; filter: brightness(0) invert(1); }
+.og-orbit-ring {
   position: absolute; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.06);
+  top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none;
+}
+.og-orbit-ring-1 { width: 160px; height: 160px; }
+.og-orbit-ring-2 { width: 260px; height: 260px; }
+/* Data pulse ring — expanding ring for analytics feel */
+.og-orbit-ring-1::after,
+.og-orbit-ring-2::after {
+  content: '';
+  position: absolute; inset: -2px;
+  border-radius: 50%;
+  border: 1px solid rgba(124,58,237,0.3);
+  animation: dataPulseRing 3s ease-out infinite;
+  opacity: 0;
+}
+.og-orbit-ring-2::after { animation-delay: 1.5s; }
+@keyframes dataPulseRing {
+  0%   { transform: scale(0.95); opacity: 0.6; border-color: rgba(124,58,237,0.5); }
+  50%  { opacity: 0.2; }
+  100% { transform: scale(1.2); opacity: 0; border-color: rgba(59,130,246,0.1); }
+}
+/* Mini orbit icons — SVG-based */
+.og-orbit-icon {
+  position: absolute; border-radius: 50%;
+  width: 34px; height: 34px;
   display: flex; align-items: center; justify-content: center;
-  animation: og-ib 6s ease-in-out infinite;
+  box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 2;
 }
-.og-ig-main {
-  width: 68px; height: 68px; font-size: 1.65rem;
-  background: linear-gradient(145deg,#062018,#0a3028);
-  box-shadow: 0 8px 28px rgba(10,48,40,.45), inset 0 1px 0 rgba(255,255,255,.12);
+.og-orbit-icon svg { width: 16px; height: 16px; stroke: rgba(255,255,255,0.6); fill: none; }
+.og-oi-1 { top: 8%; right: 18%; background: linear-gradient(135deg,#1a0e28,#2a1848); animation: o1 8s ease-in-out infinite; }
+.og-oi-2 { top: 22%; left: 8%;  background: linear-gradient(135deg,#0e1a28,#142840); animation: o2 9s ease-in-out infinite; }
+.og-oi-3 { bottom: 28%; right: 10%; background: linear-gradient(135deg,#0e2820,#1a4838); animation: o3 7s ease-in-out infinite; }
+.og-oi-4 { bottom: 12%; left: 18%; background: linear-gradient(135deg,#281010,#382020); animation: o4 10s ease-in-out infinite; }
+@keyframes o1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-12px,8px)} }
+@keyframes o2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(8px,-10px)} }
+@keyframes o3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-8px,-12px)} }
+@keyframes o4 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(10px,8px)} }
+.og-orbit-glow {
+  position: absolute; width: 180px; height: 180px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(26,58,173,.35) 0%, transparent 70%);
+  top: 50%; left: 50%; transform: translate(-50%,-50%);
+  pointer-events: none; animation: pulse 4s ease-in-out infinite;
 }
-.og-ig-s { animation: og-ib 7s ease-in-out infinite; }
-.og-ig-s:nth-child(2){width:36px;height:36px;font-size:.9rem;top:10%;left:14%;animation-delay:-1.2s;animation-duration:7.5s;background:linear-gradient(145deg,#0e1a28,#142840);}
-.og-ig-s:nth-child(3){width:30px;height:30px;font-size:.78rem;top:6%;right:16%;animation-delay:-2.4s;animation-duration:5.5s;background:linear-gradient(145deg,#0a1a10,#102018);}
-.og-ig-s:nth-child(4){width:32px;height:32px;font-size:.82rem;bottom:20%;left:10%;animation-delay:-3s;animation-duration:8.5s;background:linear-gradient(145deg,#1a0e10,#281018);}
-.og-ig-s:nth-child(5){width:26px;height:26px;font-size:.72rem;bottom:12%;right:14%;animation-delay:-1.8s;animation-duration:6.5s;background:linear-gradient(145deg,#100d28,#1e1838);}
-@keyframes og-ib {
-  0%,100%{transform:translateY(0) rotate(0)}
-  33%{transform:translateY(-9px) rotate(3deg)}
-  66%{transform:translateY(4px) rotate(-2deg)}
-}
-.og-ig-glow {
-  position:absolute;width:150px;height:150px;border-radius:50%;
-  background:radial-gradient(circle,rgba(16,100,80,.32) 0%,transparent 70%);
-  top:50%;left:50%;transform:translate(-50%,-50%);
-  animation:og-pg 4s ease-in-out infinite;pointer-events:none;
-}
-@keyframes og-pg{0%,100%{opacity:.65;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.18)}}
+@keyframes pulse { 0%,100%{opacity:.6;transform:translate(-50%,-50%) scale(1)} 50%{opacity:1;transform:translate(-50%,-50%) scale(1.15)} }
 
-/* ────────────────────────────────────────────────────
-   BC-TEAM (col1 row2) — 3D logo float
-──────────────────────────────────────────────────── */
-.og-logo-3d {
-  width: 68px; height: 68px; border-radius: 16px;
-  background: linear-gradient(145deg,#0e2060,#1a3aad);
+/* ═══ HERO — center card (Card E) ═══ */
+.og-c-e {
+  background: linear-gradient(140deg,#0a1228,#060d1c 55%,#0d1420);
+  border-color: rgba(124,58,237,.18);
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 14px 48px rgba(26,58,173,.55), inset 0 1px 0 rgba(255,255,255,.18);
-  animation: og-lf 4.5s ease-in-out infinite;
-  position: relative; z-index: 2;
+  text-align: center; padding: 32px;
 }
-.og-logo-3d img { width: 42px; height: 42px; object-fit: contain; filter: brightness(0) invert(1); }
-@keyframes og-lf{0%,100%{transform:translateY(0) rotateY(0)}50%{transform:translateY(-11px) rotateY(8deg)}}
-
-/* ────────────────────────────────────────────────────
-   BC-HERO (col2 rows 2-3) — center hero card
-──────────────────────────────────────────────────── */
-#bc-hero {
-  background: linear-gradient(140deg,#0a1228 0%,#060d1c 55%,#0d1420 100%);
-  border-color: rgba(124,58,237,.22);
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; text-align: center; padding: 32px;
-}
-#bc-hero::before {
-  content:''; position:absolute; inset:0;
+.og-c-e::after {
+  content: ''; position: absolute; inset: 0; border-radius: 20px;
   background:
     linear-gradient(130deg,rgba(255,255,255,.04) 0%,transparent 38%),
-    linear-gradient(230deg,rgba(255,255,255,.05) 0%,transparent 30%);
-  pointer-events:none; z-index:1;
+    linear-gradient(230deg,rgba(255,255,255,.04) 0%,transparent 30%);
+  pointer-events: none;
 }
-.og-hci { position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px; }
-.og-hci-row { display:flex;align-items:center;gap:7px; }
-.og-hci-row img { width:20px;height:20px;object-fit:contain;filter:brightness(0) invert(1);opacity:.85; }
-.og-hci-lt { font-family:'Space Mono',monospace;font-size:.76rem;font-weight:700;color:#7a8090; }
-.og-hci-h { font-size:clamp(1.4rem,2.2vw,1.95rem);font-weight:700;letter-spacing:-.025em;line-height:1.22; }
 
-/* ────────────────────────────────────────────────────
-   BC-APPROACH (col3 row2) — AI search
-──────────────────────────────────────────────────── */
+/* Hero ambient glow */
+.og-hero-glow {
+  position: absolute; inset: 0; border-radius: 20px;
+  background: radial-gradient(ellipse at 50% 60%,
+    rgba(124,58,237,.12) 0%,
+    rgba(59,130,246,.06) 30%,
+    transparent 70%);
+  pointer-events: none; z-index: 0;
+  animation: heroGlow 3.5s ease-in-out infinite;
+}
+@keyframes heroGlow {
+  0%,100% { opacity: .5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
 
-/* ────────────────────────────────────────────────────
-   BC-BRAND (col3 row3) — scrolling emoji strip
-──────────────────────────────────────────────────── */
+/* Hero sonar ping — radial expanding ring */
+.og-sonar-ring {
+  position: absolute;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  border: 1px solid rgba(124,58,237,0.4);
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%) scale(0.3);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  animation: sonarPing 3s ease-out infinite;
+}
+.og-sonar-ring-2 { animation-delay: 1s; }
+.og-sonar-ring-3 { animation-delay: 2s; }
+@keyframes sonarPing {
+  0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 0.7; border-color: rgba(124,58,237,0.6); }
+  70%  { opacity: 0.15; }
+  100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0; border-color: rgba(59,130,246,0.05); }
+}
+
+.og-hero-inner { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.og-hero-badge { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.og-hero-badge img { width: 18px; height: 18px; object-fit: contain; filter: brightness(0) invert(1); opacity: .85; }
+.og-hero-label { font-family: 'Space Mono', monospace; font-size: .72rem; font-weight: 700; color: #6a7080; }
+.og-hero-title { font-size: clamp(1.2rem,1.8vw,1.7rem); font-weight: 700; letter-spacing: -.025em; line-height: 1.15; }
+
+/* ═══ Oregent Teach (Card F) ═══ */
+.og-brand-grid {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  gap: 6px; margin-top: 20px;
+}
+.og-brand-item {
+  aspect-ratio: 1; border-radius: 10px;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .2s, border-color .2s;
+  overflow: hidden;
+}
+.og-brand-item img {
+  width: 22px; height: 22px; object-fit: contain;
+  filter: brightness(0) invert(1); opacity: 0.5;
+  transition: opacity .3s;
+}
+.og-brand-item svg {
+  width: 18px; height: 18px;
+  stroke: rgba(255,255,255,0.5); fill: none;
+  transition: stroke .3s;
+}
+.og-brand-item:hover { transform: scale(1.05); border-color: rgba(124,58,237,.25); }
+.og-brand-item:hover img { opacity: 0.8; }
+.og-brand-item:hover svg { stroke: rgba(255,255,255,0.8); }
+
+/* Counter ticker for Oregent Teach */
+.og-counter-wrap {
+  position: absolute; top: 16px; right: 16px; z-index: 5;
+  display: flex; align-items: baseline; gap: 2px;
+}
+.og-counter-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 1.6rem; font-weight: 700;
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+.og-counter-label {
+  font-size: .6rem; color: var(--muted); font-weight: 500;
+  text-transform: uppercase; letter-spacing: .08em;
+  line-height: 1;
+}
+
+/* ═══ Scrolling strip (Card G — AI-Powered Insights) ═══ */
 .og-strip-wrap {
-  overflow:hidden;height:46px;
-  mask-image:linear-gradient(to right,transparent,black 12%,black 88%,transparent);
+  overflow: hidden; height: 42px; margin-top: 18px;
+  mask-image: linear-gradient(to right,transparent,black 12%,black 88%,transparent);
 }
-.og-strip-track {
-  display:flex;gap:8px;width:max-content;
-  animation:og-sc 13s linear infinite;
+.og-strip-track { display: flex; gap: 6px; width: max-content; animation: sc 14s linear infinite; }
+/* Hover reverse scroll */
+.og-strip-wrap[data-hovered="true"] .og-strip-track {
+  animation-direction: reverse;
 }
-.og-strip-item {
-  width:50px;height:40px;border-radius:8px;
-  background:#0a0d1a;border:1px solid #141828;
-  display:flex;align-items:center;justify-content:center;
-  font-size:.95rem;flex-shrink:0;
+.og-strip-chip {
+  width: 46px; height: 36px; border-radius: 8px;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
-@keyframes og-sc{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.og-strip-chip svg {
+  width: 16px; height: 16px; stroke: rgba(255,255,255,0.35); fill: none;
+}
+@keyframes sc { from{transform:translateX(0)} to{transform:translateX(-50%)} }
 
-/* ────────────────────────────────────────────────────
-   TICKER (bottom of section)
-──────────────────────────────────────────────────── */
+/* ═══ TICKER ═══ */
 .og-ticker-wrap {
-  overflow:hidden;
-  border-top:1px solid var(--border);
-  border-bottom:1px solid var(--border);
-  padding:10px 0;margin:48px 0 0;
-  mask-image:linear-gradient(to right,transparent,black 8%,black 92%,transparent);
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0; margin: 48px 0 0;
+  mask-image: linear-gradient(to right,transparent,black 8%,black 92%,transparent);
 }
-.og-ticker-track {
-  display:flex;gap:40px;white-space:nowrap;
-  animation:og-tk 22s linear infinite;width:max-content;
-}
+.og-ticker-track { display: flex; gap: 40px; white-space: nowrap; animation: tk 22s linear infinite; width: max-content; }
 .og-ticker-item {
-  display:flex;align-items:center;gap:8px;
-  font-size:.68rem;font-weight:500;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--muted);
+  display: flex; align-items: center; gap: 8px;
+  font-size: .68rem; font-weight: 500; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
 }
-.og-tdot { width:4px;height:4px;background:var(--p2);border-radius:50%;flex-shrink:0; }
-@keyframes og-tk{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.og-ticker-dot { width: 4px; height: 4px; background: var(--purple); border-radius: 50%; flex-shrink: 0; }
+@keyframes tk { from{transform:translateX(0)} to{transform:translateX(-50%)} }
 
-/* ────────────────────────────────────────────────────
-   CENTER LOGO OVERLAY (Phase 2 animation)
-──────────────────────────────────────────────────── */
-.og-center-logo {
-  position:fixed;top:50%;left:50%;
-  transform:translate(-50%,-50%);
-  z-index:400;opacity:0;pointer-events:none;text-align:center;
+/* ═══ LIGHT SWEEP — diagonal glint across grid ═══ */
+.og-light-sweep {
+  position: absolute; inset: 0; pointer-events: none; z-index: 20;
+  border-radius: 20px;
+  overflow: hidden;
 }
-.og-cl-ring {
-  width:120px;height:120px;border-radius:50%;
-  background:rgba(2,2,3,0.97);
-  border:2px solid rgba(124,58,237,.55);
-  display:flex;align-items:center;justify-content:center;
-  margin:0 auto 10px;
-  box-shadow:0 0 40px rgba(124,58,237,.3);
+.og-light-sweep::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255,255,255,.03) 45%,
+    rgba(255,255,255,.06) 50%,
+    rgba(255,255,255,.03) 55%,
+    transparent 60%,
+    transparent 100%
+  );
+  opacity: 0;
 }
-.og-cl-ring img { width:66px;height:66px;object-fit:contain;filter:brightness(0) invert(1); }
-.og-cl-name {
-  font-family:'Space Mono',monospace;
-  font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--p3);
+.og-anim .og-card.og-card-visible .og-light-sweep::after {
+  animation: lightSweep 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.og-anim .og-c-e .og-light-sweep::after { animation-delay: 3.5s !important; }
+.og-anim .og-c-b .og-light-sweep::after { animation-delay: 3.8s !important; }
+.og-anim .og-c-g .og-light-sweep::after { animation-delay: 4.1s !important; }
+.og-anim .og-c-a .og-light-sweep::after { animation-delay: 4.3s !important; }
+.og-anim .og-c-d .og-light-sweep::after { animation-delay: 4.4s !important; }
+.og-anim .og-c-c .og-light-sweep::after { animation-delay: 4.6s !important; }
+.og-anim .og-c-f .og-light-sweep::after { animation-delay: 4.8s !important; }
+
+@keyframes lightSweep {
+  0%   { left: -100%; opacity: 1; }
+  100% { left: 180%; opacity: 0; }
 }
 
-/* ── Responsive ── */
+/* Responsive */
 @media(max-width:860px){
-  .og-bento{
-    grid-template-columns:1fr;
-    grid-template-rows:auto;
-    gap:10px;
+  .og-bento {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    height: auto; gap: 8px;
   }
-  #bc-startup,#bc-product,#bc-analytics,
-  #bc-team,#bc-hero,#bc-approach,#bc-brand {
-    grid-area:auto !important;
+  .og-c-a,.og-c-b,.og-c-c,.og-c-d,.og-c-e,.og-c-f,.og-c-g {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    min-height: 240px;
   }
 }
 `;
 
-// ─────────────────────────────────────────────────────────────
-// STATIC CODE CONTENT (displayed immediately, no typing)
-// ─────────────────────────────────────────────────────────────
-const CODE_HL = [
-  '<span class="cm">&lt;!-- Oregent Platform --&gt;</span>',
-  '<span class="kw">import</span> { <span class="atr">Oregent</span> } <span class="kw">from</span> <span class="str">\'@oregent/core\'</span>',
-  "",
-  '<span class="kw">const</span> <span class="atr">app</span> = <span class="kw">new</span> <span class="tag">Oregent</span>({',
-  '  <span class="atr">workspace</span>: <span class="str">\'my-startup\'</span>,',
-  '  <span class="atr">features</span>: [<span class="str">\'analytics\'</span>,',
-  '             <span class="str">\'ai\'</span>, <span class="str">\'deploy\'</span>],',
-  '  <span class="atr">scale</span>: <span class="str">\'auto\'</span>',
-  "})",
-  "",
-  '<span class="cm">// Ship faster than ever</span>',
-  '<span class="tag">app</span>.<span class="atr">launch</span>()',
+/* ═══ SVG ICONS — formal replacements for emojis ═══ */
+const SvgIcons = {
+  close: <svg viewBox="0 0 24 24" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>,
+  mic: <svg viewBox="0 0 24 24" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>,
+  camera: <svg viewBox="0 0 24 24" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>,
+  search: <svg viewBox="0 0 24 24" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
+  chart: <svg viewBox="0 0 24 24" strokeWidth="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>,
+  bolt: <svg viewBox="0 0 24 24" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+  link: <svg viewBox="0 0 24 24" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+  message: <svg viewBox="0 0 24 24" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  code: <svg viewBox="0 0 24 24" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
+  pen: <svg viewBox="0 0 24 24" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>,
+  grid: <svg viewBox="0 0 24 24" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+  cpu: <svg viewBox="0 0 24 24" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>,
+  star: <svg viewBox="0 0 24 24" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+  globe: <svg viewBox="0 0 24 24" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+  brain: <svg viewBox="0 0 24 24" strokeWidth="2"><path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-1.2 2.85A5 5 0 0 1 17 13a5 5 0 0 1-2 4 3 3 0 0 1-3 5 3 3 0 0 1-3-5 5 5 0 0 1-2-4 5 5 0 0 1 2.2-4.15A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><line x1="12" y1="2" x2="12" y2="22"/></svg>,
+  shield: <svg viewBox="0 0 24 24" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  target: <svg viewBox="0 0 24 24" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+  layers: <svg viewBox="0 0 24 24" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
+};
+
+/* ═══ CODE LINES (Card A typing animation) ═══ */
+const CODE_LINES = [
+  '<span class="cm">&lt;!DOCTYPE html&gt;</span>',
+  '<span class="tag">&lt;html</span> <span class="atr">lang</span>=<span class="str">"en"</span><span class="tag">&gt;</span>',
+  '<span class="tag">&lt;head&gt;</span>',
+  '  <span class="tag">&lt;meta</span> <span class="atr">charset</span>=<span class="str">"UTF-8"</span><span class="tag">&gt;</span>',
+  '  <span class="tag">&lt;meta</span> <span class="atr">name</span>=<span class="str">"viewport"</span> <span class="atr">content</span>=<span class="str">"..."</span><span class="tag">&gt;</span>',
+  '  <span class="tag">&lt;title&gt;</span><span class="pn">Oregent Platform</span><span class="tag">&lt;/title&gt;</span>',
+  '  <span class="tag">&lt;style&gt;</span>',
+  '  <span class="atr">body</span> <span class="pn">{</span>',
+  '    <span class="atr">font-family</span>: <span class="str">Arial, sans-serif</span>;',
+  '    <span class="atr">margin</span>: <span class="str">0</span>;',
+  '    <span class="atr">padding</span>: <span class="str">0</span>;',
+  '    <span class="atr">background</span>: <span class="str">#000</span>;',
+  '  <span class="pn">}</span>',
 ];
 
-// ─────────────────────────────────────────────────────────────
-// COMPONENT
-// ─────────────────────────────────────────────────────────────
-export default function AboutPage() {
-  const sectionRef = useRef(null);
-  const codeRef    = useRef(null);
-  const sp1Ref     = useRef(null);
-  const sp2Ref     = useRef(null);
-  const hasAnimated = useRef(false);
+/* ═══ BENTO CARD WRAPPER ═══ */
+function BentoCard({
+  children, className = "", delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
 
-  // ── Animation: zoom-out wrapper + staggered card pop-in ─────────────────
   useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
+    const timer = setTimeout(() => setVisible(true), (delay + 0.85) * 1000);
+    return () => clearTimeout(timer);
+  }, [delay]);
 
-    const wrapper = section.querySelector(".og-bento-wrapper");
-    const CARDS   = section.querySelectorAll(".og-card");
-
-    // ── INITIAL STATE (set before scroll trigger fires) ──
-    // Grid wrapper: zoomed-in + blurred — camera pull-back effect
-    gsap.set(wrapper, { scale: 1.15, opacity: 0, filter: "blur(12px)" });
-    // Each card: small + invisible — will pop in with stagger
-    gsap.set(CARDS, { scale: 0.8, opacity: 0, transformOrigin: "center center" });
-    // Logo overlay hidden
-    gsap.set(".og-center-logo", { opacity: 0, scale: 0.8 });
-
-    const trigger = ScrollTrigger.create({
-      trigger: section,
-      start: "top 75%",
-      once: true,
-      onEnter: () => {
-        if (hasAnimated.current) return;
-        hasAnimated.current = true;
-
-        const tl = gsap.timeline();
-
-        // ── PHASE 1: Grid wrapper zooms OUT (camera pull-back) ──
-        // Simultaneously fades in + removes blur + scales from 1.15 → 1.0
-        tl.to(wrapper, {
-          scale: 1,
-          opacity: 1,
-          filter: "blur(0px)",
-          duration: 1.1,
-          ease: "power3.out",
-        });
-
-        // ── PHASE 2 + 3: Cards pop in with stagger — starts at same time ──
-        // Each card: scale 0.8→1, opacity 0→1, spring-like ease, 0.1s stagger
-        tl.to(CARDS, {
-          scale: 1,
-          opacity: 1,
-          duration: 0.65,
-          ease: "back.out(1.6)",   // spring feel: overshoot then settle
-          stagger: {
-            each: 0.1,             // 0.1s between each card
-            from: "center",        // start from center card outward
-          },
-        }, 0.05); // slight offset so wrapper starts first
-
-        // ── 3D magnetic hover (attached after animation) ──
-        const hoverCleanup = [];
-        CARDS.forEach(card => {
-          const onMove = e => {
-            const r = card.getBoundingClientRect();
-            const dx = (e.clientX - (r.left + r.width  / 2)) / r.width  * 9;
-            const dy = (e.clientY - (r.top  + r.height / 2)) / r.height * 7;
-            gsap.to(card, {
-              rotateX: -dy, rotateY: dx,
-              duration: .28, ease: "power2.out",
-              transformPerspective: 700, overwrite: "auto",
-            });
-          };
-          const onLeave = () => {
-            gsap.to(card, {
-              rotateX: 0, rotateY: 0,
-              duration: .55, ease: "power3.out", overwrite: "auto",
-            });
-          };
-          card.addEventListener("mousemove", onMove);
-          card.addEventListener("mouseleave", onLeave);
-          hoverCleanup.push(() => {
-            card.removeEventListener("mousemove", onMove);
-            card.removeEventListener("mouseleave", onLeave);
-          });
-        });
-
-        return () => hoverCleanup.forEach(fn => fn());
-      },
-    });
-
-    return () => trigger.kill();
+  const onMove = useCallback((e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const dx = (e.clientX - (r.left + r.width / 2)) / r.width;
+    const dy = (e.clientY - (r.top + r.height / 2)) / r.height;
+    el.style.transform = `perspective(800px) rotateX(${-dy * 5}deg) rotateY(${dx * 7}deg) scale(1.01)`;
+    const g = el.querySelector(".og-card-glow") as HTMLElement;
+    if (g) {
+      g.style.setProperty("--gx", `${((e.clientX - r.left) / r.width) * 100}%`);
+      g.style.setProperty("--gy", `${((e.clientY - r.top) / r.height) * 100}%`);
+    }
   }, []);
 
-  // ── Code block — render STATIC full code immediately (no typing) ─────────
+  const onLeave = useCallback(() => {
+    const el = ref.current;
+    if (el) el.style.transform = "";
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`og-card ${className}${visible ? " og-card-visible" : ""}`}
+      style={{ transition: "border-color .3s" }}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+    >
+      <div className="og-card-glow" />
+      <div className="og-light-sweep" />
+      {children}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   MAIN COMPONENT
+   ═══════════════════════════════════════════ */
+export default function AboutPage() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const codeRef = useRef<HTMLPreElement>(null);
+  const searchRef = useRef<HTMLSpanElement>(null);
+  const counterRef = useRef<HTMLSpanElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [started, setStarted] = useState(false);
+
+  /* ── IntersectionObserver — 0.3s scroll delay then triggers ── */
   useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    let tid: ReturnType<typeof setTimeout>;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          tid = setTimeout(() => {
+            setStarted(true);
+          }, 300);
+        } else {
+          clearTimeout(tid);
+          setStarted(false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    io.observe(el);
+    return () => {
+      clearTimeout(tid);
+      io.disconnect();
+    };
+  }, []);
+
+  /* ── Code typing (Card A) ── */
+  useEffect(() => {
+    if (!started) return;
     const el = codeRef.current;
     if (!el) return;
-    // Render the full highlighted code all at once — static, never shifts layout
-    const fullHtml = CODE_HL.join("\n");
-    el.innerHTML = fullHtml;
-  }, []);
-
-  // ── Search typing ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const makeTyper = (el, queries, spd, delay) => {
-      if (!el) return () => {};
-      let qi = 0, ci = 0, del = false, tid;
-      const tick = () => {
-        const q = queries[qi];
-        if (!del) {
-          if (ci < q.length) { el.textContent = q.slice(0, ++ci); tid = setTimeout(tick, spd + Math.random() * 25); }
-          else tid = setTimeout(() => { del = true; tick(); }, 2000);
-        } else {
-          if (ci > 0) { el.textContent = q.slice(0, --ci); tid = setTimeout(tick, spd * .4); }
-          else { del = false; qi = (qi + 1) % queries.length; tid = setTimeout(tick, 280); }
-        }
-      };
-      tid = setTimeout(tick, delay);
-      return () => clearTimeout(tid);
+    let idx = 0, alive = true;
+    const type = () => {
+      if (!alive || idx >= CODE_LINES.length) {
+        if (el) el.innerHTML = CODE_LINES.join("\n") + '<span class="og-cur"></span>';
+        return;
+      }
+      idx++;
+      el.innerHTML = CODE_LINES.slice(0, idx).join("\n") + '<span class="og-cur"></span>';
+      setTimeout(type, 70 + Math.random() * 40);
     };
+    const t = setTimeout(type, 1300);
+    return () => { alive = false; clearTimeout(t); };
+  }, [started]);
 
-    const c1 = makeTyper(sp1Ref.current,
-      ["find your next big feature...", "ship faster with AI...", "optimize onboarding flow..."], 72, 1600);
-    const c2 = makeTyper(sp2Ref.current,
-      ["analyze your metrics...", "track daily active users...", "compare cohort data..."], 68, 2200);
-    return () => { c1(); c2(); };
+  /* ── Search typing with thinking dots (Card C) ── */
+  useEffect(() => {
+    if (!started) return;
+    const el = searchRef.current;
+    if (!el) return;
+    const queries = ["Deploy Pipeline...", "Automate Testing Workflow...", "Product Roadmap Analysis..."];
+    let qi = 0, ci = 0, del = false, thinking = false;
+    let tid: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const q = queries[qi];
+      if (thinking) {
+        el.innerHTML = '<span class="og-thinking-dots"><span></span><span></span><span></span></span>';
+        tid = setTimeout(() => {
+          thinking = false;
+          el.textContent = "";
+          tick();
+        }, 800);
+        return;
+      }
+      if (!del) {
+        if (ci < q.length) { el.textContent = q.slice(0, ++ci); tid = setTimeout(tick, 75 + Math.random() * 20); }
+        else tid = setTimeout(() => { del = true; tick(); }, 2200);
+      } else {
+        if (ci > 0) { el.textContent = q.slice(0, --ci); tid = setTimeout(tick, 26); }
+        else { del = false; qi = (qi + 1) % queries.length; thinking = true; tid = setTimeout(tick, 200); }
+      }
+    };
+    tid = setTimeout(tick, 1600);
+    return () => clearTimeout(tid);
+  }, [started]);
+
+  /* ── Counter ticker (Card F — Oregent Teach) ── */
+  useEffect(() => {
+    if (!started) return;
+    const el = counterRef.current;
+    if (!el) return;
+    const target = 160;
+    let current = 0;
+    let alive = true;
+    const duration = 2000;
+    const steps = 60;
+    const increment = target / steps;
+    const interval = duration / steps;
+    const countUp = () => {
+      if (!alive) return;
+      current += increment;
+      if (current >= target) {
+        el.textContent = "160+";
+        return;
+      }
+      el.textContent = Math.floor(current).toString();
+      setTimeout(countUp, interval);
+    };
+    const t = setTimeout(countUp, 1750);
+    return () => { alive = false; clearTimeout(t); };
+  }, [started]);
+
+  /* ── Strip hover handlers (Card G) ── */
+  const onStripEnter = useCallback(() => {
+    if (stripRef.current) stripRef.current.setAttribute("data-hovered", "true");
+  }, []);
+  const onStripLeave = useCallback(() => {
+    if (stripRef.current) stripRef.current.setAttribute("data-hovered", "false");
   }, []);
 
-  // ─────────────────────────────────────────────────────────────
-  // JSX
-  // ─────────────────────────────────────────────────────────────
+  /* ═══════════════════════════════════════════
+     JSX
+     ═══════════════════════════════════════════ */
   return (
     <div className="og-about" ref={sectionRef} id="about">
       <style>{CSS}</style>
-
-      {/* Google Fonts */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap"
-        rel="stylesheet"
-      />
-
-      {/* ── Center logo overlay (Phase 2) ── */}
-      <div className="og-center-logo">
-        <div className="og-cl-ring" id="og-cl-ring">
-          <img src={logoSrc} alt="Oregent" />
-        </div>
-        <div className="og-cl-name">Oregent</div>
-      </div>
-
       <div className="og-wrap">
-        {/* ════════ BENTO GRID — exactly 7 cards ════════ */}
-        {/* og-bento-wrapper is what GSAP zooms out from scale(1.15) → scale(1) */}
-        <div className="og-bento-wrapper">
-        <div className="og-bento">
+        <div ref={triggerRef} style={{ position: 'absolute', top: '400px', left: 0, width: '1px', height: '1px' }} />
 
-          {/* ── Card 1: Startup Development (col1 row1) ── */}
-          <div className="og-card card-tex" id="bc-startup">
-            <div className="bc-startup-top">
-              <div className="og-title">Startup Development</div>
-              <div className="og-desc" style={{ fontSize: ".76rem", marginTop: 5 }}>
-                We build scalable, high-performing products — clean code, clear vision.
-              </div>
-              <a href="#" className="og-more">See More →</a>
-            </div>
-            {/* Fixed-height code area: absolutely positioned pre inside */}
-            <div className="bc-code-wrap">
-              <div className="bc-code-border" />
-              <pre className="og-code" ref={codeRef} />
-            </div>
-            <div className="og-gblob" style={{ width: 130, height: 130, bottom: -45, right: -35, background: "rgba(124,58,237,.17)" }} />
-          </div>
+        <div className={`og-zoom${started ? " og-anim" : ""}`}>
+          <div className="og-bento">
 
-          {/* ── Card 2: Product & Strategy (col2 row1) ── */}
-          <div className="og-card card-tex" id="bc-product">
-            <div className="og-tc">
-              <div className="og-title">Product & Strategy</div>
-              <div className="og-desc">
-                Turning ambitious ideas into intuitive products. We obsess over user experience,
-                data, and impact — shipping things that actually matter to teams that build.
+            {/* ═══ A — Startup Development (col1 top, 50%) ═══ */}
+            <BentoCard className="og-c-a og-tex" delay={0.36}>
+              <div className="og-inner">
+                <div className="og-title">Startup Development</div>
+                <div className="og-desc">Build scalable and high-performing products with clean code.</div>
               </div>
-              <a href="#" className="og-more">See More →</a>
-              <div style={{ marginTop: 22 }}>
-                <div className="og-spill">
-                  <span className="og-spill-ico">⌕</span>
-                  <span className="og-spill-txt" ref={sp1Ref}>find your next big feature...</span>
-                  <div className="og-spill-go">↵</div>
+              <div className="og-code-area">
+                <div className="og-code-border" />
+                <pre className="og-code" ref={codeRef} />
+              </div>
+            </BentoCard>
+
+            {/* ═══ B — Analytics & Growth (col2 top, 33%) ═══ */}
+            <BentoCard className="og-c-b og-tex" delay={0.22}>
+              <div className="og-inner">
+                <div className="og-title">Analytics &amp; Growth</div>
+                <div className="og-desc">Real-time dashboards built for decisions, not decoration. We build data science and AI analytics systems that surface what actually matters — grounded, explainable, and deployable. Connect your tools, surface insights, and ship faster without the noise.</div>
+              </div>
+            </BentoCard>
+
+            {/* ═══ C — Product & Strategy (col3 top, 50%) ═══ */}
+            <BentoCard className="og-c-c og-tex" delay={0.44}>
+              <div className="og-inner">
+                <div className="og-title">Product &amp; Strategy</div>
+                <div className="og-desc">AI-driven product development, automation, and deployment. We own end-to-end: Design → Development → Testing → Deployment.</div>
+                <div className="og-search-wrap">
+                  <div className="og-search-glow" />
+                  <div className="og-search">
+                    <span className="og-search-txt" ref={searchRef}>Deploy Pipeline...</span>
+                    <div className="og-search-icons">
+                      <div className="og-search-icon">{SvgIcons.close}</div>
+                      <div className="og-search-icon">{SvgIcons.mic}</div>
+                      <div className="og-search-icon">{SvgIcons.camera}</div>
+                    </div>
+                    <div className="og-search-btn">{SvgIcons.search}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="og-gblob" style={{ width: 190, height: 75, bottom: -22, left: "50%", transform: "translateX(-50%)", background: "rgba(100,50,220,.13)" }} />
-          </div>
+            </BentoCard>
 
-          {/* ── Card 3: Analytics & Growth (col3 row1) ── */}
-          <div className="og-card card-tex" id="bc-analytics" style={{ background: "var(--card-teal)" }}>
-            <div style={{ padding: 24, position: "relative", zIndex: 1 }}>
-              <div className="og-title">Analytics & Growth</div>
-              <div className="og-desc" style={{ marginTop: 6 }}>
-                Dashboards built for conversions and engagement. Real data, real decisions — no noise.
+            {/* ═══ D — Our Team (col1 bottom, 50%) — orbit animation ═══ */}
+            <BentoCard className="og-c-d og-tex" delay={0.36}>
+              <div className="og-inner">
+                <div className="og-title">Our Team</div>
+                <div className="og-desc">Core engineering team with hands-on experience in full-stack, mobile, agentic AI, RAG, and cybersecurity. Built to ship.</div>
               </div>
-              <a href="#" className="og-more">See More →</a>
-            </div>
-            <div className="og-icons-scene">
-              <div className="og-ig-glow" />
-              <div className="og-ig og-ig-main">📈</div>
-              <div className="og-ig og-ig-s">⚡</div>
-              <div className="og-ig og-ig-s">🌐</div>
-              <div className="og-ig og-ig-s">🔔</div>
-              <div className="og-ig og-ig-s">🗂</div>
-            </div>
-          </div>
+              <div className="og-orbit-scene">
+                <div className="og-orbit-glow" />
+                <div className="og-orbit-ring og-orbit-ring-1" />
+                <div className="og-orbit-ring og-orbit-ring-2" />
+                <div className="og-orbit-center"><img src={logoSrc} alt="Oregent" /></div>
+                <div className="og-orbit-icon og-oi-1">{SvgIcons.chart}</div>
+                <div className="og-orbit-icon og-oi-2">{SvgIcons.bolt}</div>
+                <div className="og-orbit-icon og-oi-3">{SvgIcons.link}</div>
+                <div className="og-orbit-icon og-oi-4">{SvgIcons.message}</div>
+              </div>
+            </BentoCard>
 
-          {/* ── Card 4: Our Team (col1 row2) ── */}
-          <div className="og-card card-tex" id="bc-team">
-            <div className="og-tc">
-              <div className="og-title">Our Team</div>
-              <div className="og-desc">
-                Former engineers and designers from Google, Stripe, and Notion — united by one
-                belief: great software changes how people work.
-              </div>
-              <a href="#" className="og-more">See More →</a>
-            </div>
-            <div style={{ position: "absolute", bottom: 18, left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
-              <div className="og-logo-3d">
-                <img src={logoSrc} alt="Oregent" />
-              </div>
-            </div>
-            <div className="og-gblob" style={{ width: 170, height: 145, bottom: -60, left: "50%", transform: "translateX(-50%)", background: "radial-gradient(circle,rgba(26,58,173,.42) 0%,transparent 70%)" }} />
-          </div>
-
-          {/* ── Card 5: HERO — Everything in One Place (col2 rows 2-3) ── */}
-          <div className="og-card" id="bc-hero">
-            <div className="og-hci">
-              <div className="og-hci-row">
-                <img src={logoSrc} alt="Oregent" />
-                <span className="og-hci-lt">Oregent</span>
-              </div>
-              <div className="og-hci-h">Everything in<br />One Place</div>
-            </div>
-          </div>
-
-          {/* ── Card 6: AI-Powered Insights (col3 row2) ── */}
-          <div className="og-card card-tex" id="bc-approach">
-            <div className="og-tc">
-              <div className="og-title">AI-Powered Insights</div>
-              <div className="og-desc" style={{ marginBottom: 14 }}>
-                Intelligent analysis that surfaces what matters — before you even ask.
-              </div>
-              <div className="og-spill">
-                <span className="og-spill-ico">⌕</span>
-                <span className="og-spill-txt" ref={sp2Ref}>analyze your metrics...</span>
-                <div className="og-spill-go">↵</div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Card 7: Brand & Design (col3 row3) ── */}
-          <div className="og-card card-tex" id="bc-brand">
-            <div className="og-tc" style={{ justifyContent: "space-between" }}>
-              <div>
-                <div className="og-title">Brand & Design</div>
-                <div className="og-desc" style={{ marginTop: 6 }}>
-                  Craft a unique, cohesive identity with Oregent's all-in-one creative platform.
+            {/* ═══ E — HERO (col2 center, 33%) — sonar ping ═══ */}
+            <BentoCard className="og-c-e" delay={0.1}>
+              <div className="og-hero-glow" />
+              <div className="og-sonar-ring" />
+              <div className="og-sonar-ring og-sonar-ring-2" />
+              <div className="og-sonar-ring og-sonar-ring-3" />
+              <div className="og-hero-inner">
+                <div className="og-hero-badge">
+                  <img src={logoSrc} alt="Oregent" />
+                  <span className="og-hero-label">Oregent</span>
                 </div>
-                <a href="#" className="og-more">See More →</a>
+                <div className="og-hero-title">Everything in<br />One Place</div>
               </div>
-              <div className="og-strip-wrap" style={{ marginTop: 16 }}>
-                <div className="og-strip-track">
-                  {["🎨","🖼","✏️","🎭","🖋","📐","🌈","🎨","🖼","✏️","🎭","🖋","📐","🌈"].map((e, i) => (
-                    <div className="og-strip-item" key={i}>{e}</div>
-                  ))}
+            </BentoCard>
+
+            {/* ═══ F — Oregent Teach (col3 bottom, 50%) — counter ticker ═══ */}
+            <BentoCard className="og-c-f og-tex" delay={0.44}>
+              <div className="og-counter-wrap">
+                <span className="og-counter-num" ref={counterRef}>0</span>
+                <span className="og-counter-label">+<br/>projects</span>
+              </div>
+              <div className="og-inner">
+                <div className="og-title">Oregent Teach</div>
+                <div className="og-desc">Oregent Teach (formerly EyeQ) — practical, project-based technical education. 40 active students. 160+ projects shipped in 2 months.</div>
+                <div className="og-brand-grid">
+                  <div className="og-brand-item"><img src={logoSrc} alt="O" /></div>
+                  <div className="og-brand-item">{SvgIcons.code}</div>
+                  <div className="og-brand-item">{SvgIcons.pen}</div>
+                  <div className="og-brand-item">{SvgIcons.grid}</div>
                 </div>
               </div>
-            </div>
+            </BentoCard>
+
+            {/* ═══ G — AI-Powered Insights (col2 bottom, 33%) — thinking dots + strip ═══ */}
+            <BentoCard className="og-c-g og-tex" delay={0.28}>
+              <div className="og-inner">
+                <div className="og-title">AI-Powered Insights</div>
+                <div className="og-desc">RAG-based intelligence platforms combining structured and unstructured data. Enabling explainable, context-aware AI insights at scale.</div>
+                <div className="og-strip-wrap" ref={stripRef} data-hovered="false" onMouseEnter={onStripEnter} onMouseLeave={onStripLeave}>
+                  <div className="og-strip-track">
+                    {[SvgIcons.cpu, SvgIcons.brain, SvgIcons.target, SvgIcons.star, SvgIcons.shield, SvgIcons.globe, SvgIcons.layers,
+                      SvgIcons.cpu, SvgIcons.brain, SvgIcons.target, SvgIcons.star, SvgIcons.shield, SvgIcons.globe, SvgIcons.layers].map((icon, i) => (
+                      <div className="og-strip-chip" key={i}>{icon}</div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </BentoCard>
+
           </div>
+        </div>
 
-        </div>{/* /bento */}
-        </div>{/* /bento-wrapper */}
-
-        {/* ── Ticker ── */}
+        {/* ═══ Ticker ═══ */}
         <div className="og-ticker-wrap">
           <div className="og-ticker-track">
             {[
@@ -675,7 +946,7 @@ export default function AboutPage() {
               "Loved by Builders","Y-Combinator Alumni","Shipping Fast Daily",
             ].map((t, i) => (
               <div className="og-ticker-item" key={i}>
-                <span className="og-tdot" />{t}
+                <span className="og-ticker-dot" />{t}
               </div>
             ))}
           </div>
