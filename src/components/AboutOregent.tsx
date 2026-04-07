@@ -55,7 +55,6 @@ const CSS = `
   --muted:  #9ca3af;
   --purple: #7c3aed;
   --blue:   #3b82f6;
-  font-family: 'Inter', -apple-system, sans-serif;
   color: var(--text);
   background: var(--bg);
   padding: 80px 24px 60px;
@@ -180,6 +179,7 @@ const CSS = `
   transform-origin: center center;
   z-index: 50;
   opacity: 0;
+  overflow: visible !important;
 }
 .og-anim .og-c-e {
   animation: heroZoomOut 2.0s cubic-bezier(0.16, 1, 0.3, 1) both !important;
@@ -212,7 +212,24 @@ const CSS = `
   100% { transform: translateY(0) scale(1); opacity: 1; filter: blur(0px); }
 }
 
-.og-card > div:not(.og-card-glow):not(.og-light-sweep) {
+/* Flowchart Popup Animation */
+@keyframes flowPop {
+  0% { transform: translateY(-15px) scale(0.8); opacity: 0; filter: blur(4px); }
+  100% { transform: translateY(0) scale(1); opacity: 1; filter: blur(0px); }
+}
+.og-flow-item {
+  opacity: 0;
+}
+.og-anim .og-flow-item {
+  animation: flowPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.og-anim .og-flow-item:nth-child(1) { animation-delay: 5.0s; }
+.og-anim .og-flow-item:nth-child(2) { animation-delay: 5.2s; }
+.og-anim .og-flow-item:nth-child(3) { animation-delay: 5.4s; }
+.og-anim .og-flow-item:nth-child(4) { animation-delay: 5.6s; }
+.og-anim .og-flow-item:nth-child(5) { animation-delay: 5.8s; }
+.og-anim .og-flow-item:nth-child(6) { animation-delay: 6.0s; }
+.og-anim .og-flow-item:nth-child(7) { animation-delay: 6.2s; }
   opacity: 1;
   transform: none;
 }
@@ -236,13 +253,13 @@ const CSS = `
 }
 
 /* ═══ TEXT ═══ */
-.og-inner { padding: 28px; position: relative; z-index: 1; }
+.og-inner { padding: 28px; position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; }
 .og-title { font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; margin-bottom: 10px; line-height: 1.25; }
-.og-desc  { font-size: .82rem; color: var(--muted); line-height: 1.7; }
+.og-desc  { font-size: 0.95rem; color: var(--muted); line-height: 1.7; }
 
 /* ═══ DEV — code block (Card A) ═══ */
 .og-c-a { display: flex; flex-direction: column; }
-.og-c-a .og-inner { padding-bottom: 14px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+.og-c-a .og-inner { padding-bottom: 14px; flex-shrink: 0; border-bottom: 1px solid var(--border); height: auto; }
 .og-code-area { flex: 1; position: relative; overflow: hidden; }
 .og-code-border {
   position: absolute; inset: 10px;
@@ -271,7 +288,7 @@ pre.og-code {
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
 /* ═══ Search pill (Card C — Product & Strategy) ═══ */
-.og-search-wrap { margin-top: 28px; position: relative; z-index: 1; }
+.og-search-wrap { margin-top: auto; padding-top: 28px; position: relative; z-index: 1; }
 .og-search-glow {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
   width: 280px; height: 60px; border-radius: 50%;
@@ -354,10 +371,8 @@ pre.og-code {
   overflow: hidden;
 }
 .og-orbit-center {
-  width: 72px; height: 72px; border-radius: 18px;
-  background: linear-gradient(145deg, #0e2060, #1a3aad);
+  width: 72px; height: 72px;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 12px 44px rgba(26,58,173,.5), inset 0 1px 0 rgba(255,255,255,.15);
   position: relative; z-index: 3;
 }
 .og-orbit-center img { width: 40px; height: 40px; object-fit: contain; filter: brightness(0) invert(1); }
@@ -392,14 +407,9 @@ pre.og-code {
   box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 2;
 }
 .og-orbit-icon svg { width: 16px; height: 16px; stroke: rgba(255,255,255,0.6); fill: none; }
-.og-oi-1 { top: 8%; right: 18%; background: linear-gradient(135deg,#1a0e28,#2a1848); animation: o1 8s ease-in-out infinite; }
-.og-oi-2 { top: 22%; left: 8%;  background: linear-gradient(135deg,#0e1a28,#142840); animation: o2 9s ease-in-out infinite; }
-.og-oi-3 { bottom: 28%; right: 10%; background: linear-gradient(135deg,#0e2820,#1a4838); animation: o3 7s ease-in-out infinite; }
-.og-oi-4 { bottom: 12%; left: 18%; background: linear-gradient(135deg,#281010,#382020); animation: o4 10s ease-in-out infinite; }
-@keyframes o1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-12px,8px)} }
-@keyframes o2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(8px,-10px)} }
-@keyframes o3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-8px,-12px)} }
-@keyframes o4 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(10px,8px)} }
+/* Removed svgs for team card, added logo rotation keyframe */
+@keyframes spinLogo { 100% { transform: rotate(360deg); } }
+.og-orbit-center img { width: 40px; height: 40px; object-fit: contain; filter: brightness(0) invert(1); animation: spinLogo 8s linear infinite; }
 .og-orbit-glow {
   position: absolute; width: 180px; height: 180px; border-radius: 50%;
   background: radial-gradient(circle, rgba(26,58,173,.35) 0%, transparent 70%);
@@ -438,31 +448,29 @@ pre.og-code {
   50% { opacity: 1; transform: scale(1.08); }
 }
 
-/* Hero sonar ping — radial expanding ring */
-.og-sonar-ring {
-  position: absolute;
-  width: 120px; height: 120px;
-  border-radius: 50%;
-  border: 1px solid rgba(124,58,237,0.4);
+/* Hero orbit logo animation imported from LoadingScreen */
+.og-ls-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid rgba(124,58,237,0.2);
   top: 50%; left: 50%;
-  transform: translate(-50%,-50%) scale(0.3);
+  transform: translate(-50%,-50%);
   pointer-events: none;
-  z-index: 1;
-  opacity: 0;
-  animation: sonarPing 3s ease-out infinite;
 }
-.og-sonar-ring-2 { animation-delay: 1s; }
-.og-sonar-ring-3 { animation-delay: 2s; }
-@keyframes sonarPing {
-  0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 0.7; border-color: rgba(124,58,237,0.6); }
-  70%  { opacity: 0.15; }
-  100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0; border-color: rgba(59,130,246,0.05); }
+.og-ls-ring-1 { width: 180px; height: 180px; animation: pulseRing 2s ease-out infinite; }
+.og-ls-ring-2 { width: 200px; height: 200px; animation: pulseRing 2s ease-out infinite 0.6s; border-color: rgba(59,130,246,0.2); }
+.og-ls-ring-3 { width: 220px; height: 220px; animation: pulseRing 2s ease-out infinite 1.2s; border-color: rgba(124,58,237,0.1); }
+@keyframes pulseRing {
+  0% { transform: translate(-50%,-50%) scale(0.8); opacity: 0.8; border-width: 2px; }
+  100% { transform: translate(-50%,-50%) scale(1.5); opacity: 0; border-width: 1px; }
 }
+.og-ls-word-orbit { position: absolute; inset: -30px; pointer-events: none; animation: spinLogo 30s linear infinite; }
+.og-ls-logo { position: absolute; width: 250px; height: 250px; object-fit: contain; filter: brightness(0) invert(1); z-index: 1; animation: spinLogo 40s linear infinite; opacity: 0.08; }
+.og-orbit-word { font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #fff; opacity: 0.4; white-space: pre; }
 
 .og-hero-inner { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .og-hero-badge { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
-.og-hero-badge img { width: 18px; height: 18px; object-fit: contain; filter: brightness(0) invert(1); opacity: .85; }
-.og-hero-label { font-family: 'Space Mono', monospace; font-size: .72rem; font-weight: 700; color: #6a7080; }
+.og-hero-badge img { width: 26px; height: 26px; object-fit: contain; filter: brightness(0) invert(1); opacity: .85; }
+.og-hero-label { font-family: 'Space Mono', monospace; font-size: .8rem; font-weight: 700; color: #6a7080; }
 .og-hero-title { font-size: clamp(1.2rem,1.8vw,1.7rem); font-weight: 700; letter-spacing: -.025em; line-height: 1.15; }
 
 /* ═══ Oregent Teach (Card F) ═══ */
@@ -491,14 +499,13 @@ pre.og-code {
 .og-brand-item:hover img { opacity: 0.8; }
 .og-brand-item:hover svg { stroke: rgba(255,255,255,0.8); }
 
-/* Counter ticker for Oregent Teach */
+/* Counter ticker for Oregent Teach (Centered) */
 .og-counter-wrap {
-  position: absolute; top: 16px; right: 16px; z-index: 5;
-  display: flex; align-items: baseline; gap: 2px;
+  display: flex; align-items: baseline; justify-content: center; gap: 6px; margin: 20px 0;
 }
 .og-counter-num {
   font-family: 'Space Mono', monospace;
-  font-size: 1.6rem; font-weight: 700;
+  font-size: 3rem; font-weight: 800;
   background: linear-gradient(135deg, var(--purple), var(--blue));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -628,19 +635,22 @@ const SvgIcons = {
 
 /* ═══ CODE LINES (Card A typing animation) ═══ */
 const CODE_LINES = [
-  '<span class="cm">&lt;!DOCTYPE html&gt;</span>',
-  '<span class="tag">&lt;html</span> <span class="atr">lang</span>=<span class="str">"en"</span><span class="tag">&gt;</span>',
-  '<span class="tag">&lt;head&gt;</span>',
-  '  <span class="tag">&lt;meta</span> <span class="atr">charset</span>=<span class="str">"UTF-8"</span><span class="tag">&gt;</span>',
-  '  <span class="tag">&lt;meta</span> <span class="atr">name</span>=<span class="str">"viewport"</span> <span class="atr">content</span>=<span class="str">"..."</span><span class="tag">&gt;</span>',
-  '  <span class="tag">&lt;title&gt;</span><span class="pn">Oregent Platform</span><span class="tag">&lt;/title&gt;</span>',
-  '  <span class="tag">&lt;style&gt;</span>',
-  '  <span class="atr">body</span> <span class="pn">{</span>',
-  '    <span class="atr">font-family</span>: <span class="str">Arial, sans-serif</span>;',
-  '    <span class="atr">margin</span>: <span class="str">0</span>;',
-  '    <span class="atr">padding</span>: <span class="str">0</span>;',
-  '    <span class="atr">background</span>: <span class="str">#000</span>;',
-  '  <span class="pn">}</span>',
+  '<span class="cm">// Initialize Orehack Platform</span>',
+  '<span class="kw">import</span> { <span class="tag">OrehackApp</span>, <span class="tag">AI</span>, <span class="tag">Evaluation</span> } <span class="kw">from</span> <span class="str">\'@orehack/core\'</span>;',
+  '<span class="kw">import</span> { <span class="tag">BuilderTools</span> } <span class="kw">from</span> <span class="str">\'@orehack/engine\'</span>;',
+  '',
+  '<span class="kw">const</span> <span class="atr">startup</span> = <span class="kw">new</span> <span class="tag">OrehackApp</span>({',
+  '  <span class="atr">name</span>: <span class="str">\'Orehack\'</span>,',
+  '  <span class="atr">mission</span>: <span class="str">\'Automating hackathon eval with AI\'</span>,',
+  '  <span class="atr">modules</span>: [',
+  '    <span class="kw">new</span> <span class="tag">AI</span>({ <span class="atr">model</span>: <span class="str">\'agentic-evaluator-v1\'</span> }),',
+  '    <span class="kw">new</span> <span class="tag">Evaluation</span>({ <span class="atr">realtime</span>: <span class="kw">true</span> }),',
+  '    <span class="kw">new</span> <span class="tag">BuilderTools</span>({ <span class="atr">scalable</span>: <span class="kw">true</span> }),',
+  '  ],',
+  '});',
+  '',
+  '<span class="kw">await</span> <span class="atr">startup</span>.<span class="tag">deployToProduction</span>();',
+  '<span class="tag">console</span>.<span class="tag">log</span>(<span class="str">\'Orehack Systems Online. Let us build.\'</span>);'
 ];
 
 /* ═══ BENTO CARD WRAPPER ═══ */
@@ -682,43 +692,34 @@ function BentoCard({
     <div
       ref={ref}
       className={`og-card ${className}${visible ? " og-card-visible" : ""}`}
-      style={{ transition: "border-color .3s" }}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
     >
-      <div className="og-card-glow" />
       <div className="og-light-sweep" />
+      <div className="og-card-glow" />
       {children}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════
-   MAIN COMPONENT
-   ═══════════════════════════════════════════ */
-export default function AboutPage() {
+export default function AboutOregent() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const codeRef = useRef<HTMLPreElement>(null);
   const searchRef = useRef<HTMLSpanElement>(null);
-  const counterRef = useRef<HTMLSpanElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
+  const counterRef = useRef<HTMLSpanElement>(null);
   const [started, setStarted] = useState(false);
 
-  /* ── IntersectionObserver — 0.3s scroll delay then triggers ── */
   useEffect(() => {
-    const el = sectionRef.current;
+    const el = triggerRef.current;
     if (!el) return;
     let tid: ReturnType<typeof setTimeout>;
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          tid = setTimeout(() => {
-            setStarted(true);
-          }, 300);
-        } else {
-          clearTimeout(tid);
-          setStarted(false);
+          tid = setTimeout(() => setStarted(true), 100);
+          io.disconnect();
         }
       },
       { threshold: 0.1 }
@@ -730,23 +731,49 @@ export default function AboutPage() {
     };
   }, []);
 
-  /* ── Code typing (Card A) ── */
+  /* ── Code block (Card A) - dynamic character typing ── */
   useEffect(() => {
-    if (!started) return;
+    let alive = true;
     const el = codeRef.current;
-    if (!el) return;
-    let idx = 0, alive = true;
-    const type = () => {
-      if (!alive || idx >= CODE_LINES.length) {
-        if (el) el.innerHTML = CODE_LINES.join("\n") + '<span class="og-cur"></span>';
+    if (!el || !started) return;
+    
+    // Tokenize HTML versus pure characters to type smoothly over spans
+    const fullHtml = CODE_LINES.join('\n');
+    const tokens: string[] = [];
+    let temp = "";
+    let inTag = false;
+    for (let i = 0; i < fullHtml.length; i++) {
+      if (fullHtml[i] === '<') { inTag = true; temp += '<'; }
+      else if (fullHtml[i] === '>') { inTag = false; temp += '>'; tokens.push(temp); temp = ""; }
+      else if (inTag) { temp += fullHtml[i]; }
+      else { tokens.push(fullHtml[i]); }
+    }
+
+    let idx = 0;
+    const typeTokens = () => {
+      if (!alive) return;
+      if (idx >= tokens.length) {
+        if (el) el.innerHTML = tokens.join('') + '<span class="og-cur"></span>';
+        setTimeout(() => {
+          if (alive) {
+            idx = 0;
+            if (el) el.innerHTML = '';
+            typeTokens();
+          }
+        }, 3500); // Loop infinitely
         return;
       }
       idx++;
-      el.innerHTML = CODE_LINES.slice(0, idx).join("\n") + '<span class="og-cur"></span>';
-      setTimeout(type, 70 + Math.random() * 40);
+      if (el) el.innerHTML = tokens.slice(0, idx).join('') + '<span class="og-cur"></span>';
+      
+      const isTag = tokens[idx - 1] && tokens[idx - 1].startsWith('<');
+      // If it’s an HTML tag, type it instantly (0ms), otherwise type like a fast keyboard
+      setTimeout(typeTokens, isTag ? 0 : 20 + Math.random() * 30);
     };
-    const t = setTimeout(type, 1300);
-    return () => { alive = false; clearTimeout(t); };
+    
+    el.innerHTML = '';
+    const startTimer = setTimeout(typeTokens, 600);
+    return () => { alive = false; clearTimeout(startTimer); };
   }, [started]);
 
   /* ── Search typing with thinking dots (Card C) ── */
@@ -842,26 +869,19 @@ export default function AboutPage() {
             <BentoCard className="og-c-b og-tex" delay={0.22}>
               <div className="og-inner">
                 <div className="og-title">Analytics &amp; Growth</div>
-                <div className="og-desc">Real-time dashboards built for decisions, not decoration. We build data science and AI analytics systems that surface what actually matters — grounded, explainable, and deployable. Connect your tools, surface insights, and ship faster without the noise.</div>
+                <div className="og-desc">Real-time dashboards built for decisions, not decoration. We build data science and AI analytics systems that surface what actually matters - grounded, explainable, and deployable. Connect your tools, surface insights, and ship faster without the noise.</div>
               </div>
             </BentoCard>
 
-            {/* ═══ C — Product & Strategy (col3 top, 50%) ═══ */}
+            {/* ═══ C — Oregent Teach (Swapped to col3 top) ═══ */}
             <BentoCard className="og-c-c og-tex" delay={0.44}>
               <div className="og-inner">
-                <div className="og-title">Product &amp; Strategy</div>
-                <div className="og-desc">AI-driven product development, automation, and deployment. We own end-to-end: Design → Development → Testing → Deployment.</div>
-                <div className="og-search-wrap">
-                  <div className="og-search-glow" />
-                  <div className="og-search">
-                    <span className="og-search-txt" ref={searchRef}>Deploy Pipeline...</span>
-                    <div className="og-search-icons">
-                      <div className="og-search-icon">{SvgIcons.close}</div>
-                      <div className="og-search-icon">{SvgIcons.mic}</div>
-                      <div className="og-search-icon">{SvgIcons.camera}</div>
-                    </div>
-                    <div className="og-search-btn">{SvgIcons.search}</div>
-                  </div>
+                <div className="og-title">Oregent Teach</div>
+                <div className="og-desc">Oregent Teach (formerly EyeQ) - practical, project-based technical education, 40 active students.</div>
+                
+                <div className="og-counter-wrap" style={{ marginTop: 'auto', paddingBottom: '20px' }}>
+                  <span className="og-counter-num" ref={counterRef}>0</span>
+                  <span className="og-counter-label">+<br/>projects<br/>shipped</span>
                 </div>
               </div>
             </BentoCard>
@@ -877,19 +897,38 @@ export default function AboutPage() {
                 <div className="og-orbit-ring og-orbit-ring-1" />
                 <div className="og-orbit-ring og-orbit-ring-2" />
                 <div className="og-orbit-center"><img src={logoSrc} alt="Oregent" /></div>
-                <div className="og-orbit-icon og-oi-1">{SvgIcons.chart}</div>
-                <div className="og-orbit-icon og-oi-2">{SvgIcons.bolt}</div>
-                <div className="og-orbit-icon og-oi-3">{SvgIcons.link}</div>
-                <div className="og-orbit-icon og-oi-4">{SvgIcons.message}</div>
               </div>
             </BentoCard>
 
-            {/* ═══ E — HERO (col2 center, 33%) — sonar ping ═══ */}
+            {/* ═══ E — HERO (col2 center, 33%) — Loading Screen Logo animation ═══ */}
             <BentoCard className="og-c-e" delay={0.1}>
               <div className="og-hero-glow" />
-              <div className="og-sonar-ring" />
-              <div className="og-sonar-ring og-sonar-ring-2" />
-              <div className="og-sonar-ring og-sonar-ring-3" />
+              
+              <div className="cl-word-orbit" style={{ position: 'absolute', inset: -50, pointerEvents: 'none', transform: 'scale(1.8)' }}>
+                  <svg viewBox="0 0 400 400" className="cl-word-orbit-svg" width="100%" height="100%">
+                      <defs>
+                          <path
+                              id="wordCircleReal"
+                              d="M 200,200 m -160,0 a 160,160 0 1,1 320,0 a 160,160 0 1,1 -320,0"
+                              fill="none"
+                          />
+                      </defs>
+                      <g className="cl-word-orbit-spin" style={{ transformOrigin: '200px 200px', animation: 'spinLogo 20s linear infinite' }}>
+                          {['INNOVATE', 'CREATE', 'BUILD', 'HACK', 'DESIGN', 'CODE', 'LAUNCH', 'DEPLOY'].map((word, i, arr) => {
+                              const offset = `${(i / arr.length) * 100}%`;
+                              return (
+                                  <text key={word} className="cl-orbit-word" dy="-8" fill="rgba(255,255,255,0.5)" fontSize="13px" fontFamily="monospace" letterSpacing="0.22em" fontWeight="700">
+                                      <textPath href="#wordCircleReal" startOffset={offset} textAnchor="middle">
+                                          {word}
+                                      </textPath>
+                                  </text>
+                              );
+                          })}
+                      </g>
+                  </svg>
+              </div>
+              
+              <img src={logoSrc} alt="Oregent BG Logo" className="og-ls-logo" />
               <div className="og-hero-inner">
                 <div className="og-hero-badge">
                   <img src={logoSrc} alt="Oregent" />
@@ -899,20 +938,34 @@ export default function AboutPage() {
               </div>
             </BentoCard>
 
-            {/* ═══ F — Oregent Teach (col3 bottom, 50%) — counter ticker ═══ */}
+            {/* ═══ F — Product & Strategy (Swapped to col3 bottom) ═══ */}
             <BentoCard className="og-c-f og-tex" delay={0.44}>
-              <div className="og-counter-wrap">
-                <span className="og-counter-num" ref={counterRef}>0</span>
-                <span className="og-counter-label">+<br/>projects</span>
-              </div>
               <div className="og-inner">
-                <div className="og-title">Oregent Teach</div>
-                <div className="og-desc">Oregent Teach (formerly EyeQ) — practical, project-based technical education. 40 active students. 160+ projects shipped in 2 months.</div>
-                <div className="og-brand-grid">
-                  <div className="og-brand-item"><img src={logoSrc} alt="O" /></div>
-                  <div className="og-brand-item">{SvgIcons.code}</div>
-                  <div className="og-brand-item">{SvgIcons.pen}</div>
-                  <div className="og-brand-item">{SvgIcons.grid}</div>
+                <div className="og-title">Product &amp; Strategy</div>
+                <div className="og-desc" style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span>AI-driven product development, automation, and deployment.</span>
+                  <span style={{ marginTop: '8px' }}>We own end-to-end:</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', marginTop: '8px', fontWeight: 600, color: '#ececec', fontSize: '0.85rem' }}>
+                    <span className="og-flow-item">Design</span>
+                    <span className="og-flow-item" style={{ color: 'var(--purple)', fontSize: '16px', lineHeight: 1 }}>↓</span>
+                    <span className="og-flow-item">Development</span>
+                    <span className="og-flow-item" style={{ color: 'var(--purple)', fontSize: '16px', lineHeight: 1 }}>↓</span>
+                    <span className="og-flow-item">Testing</span>
+                    <span className="og-flow-item" style={{ color: 'var(--purple)', fontSize: '16px', lineHeight: 1 }}>↓</span>
+                    <span className="og-flow-item">Deployment.</span>
+                  </div>
+                </div>
+                <div className="og-search-wrap">
+                  <div className="og-search-glow" />
+                  <div className="og-search">
+                    <span className="og-search-txt" ref={searchRef}>Deploy Pipeline...</span>
+                    <div className="og-search-icons">
+                      <div className="og-search-icon">{SvgIcons.close}</div>
+                      <div className="og-search-icon">{SvgIcons.mic}</div>
+                      <div className="og-search-icon">{SvgIcons.camera}</div>
+                    </div>
+                    <div className="og-search-btn">{SvgIcons.search}</div>
+                  </div>
                 </div>
               </div>
             </BentoCard>
@@ -940,10 +993,8 @@ export default function AboutPage() {
         <div className="og-ticker-wrap">
           <div className="og-ticker-track">
             {[
-              "Built in Bangalore","Backed by Vision","12K+ Beta Users","Remote-First Team",
-              "Loved by Builders","Y-Combinator Alumni","Shipping Fast Daily",
-              "Built in Bangalore","Backed by Vision","12K+ Beta Users","Remote-First Team",
-              "Loved by Builders","Y-Combinator Alumni","Shipping Fast Daily",
+              "Engineering Intelligence At Scale", "From Idea → Deployment", "Agentic AI", "RAG", "Automation", "DevSecOps", "Cybersecurity", "Engineering Real-World Systems", "Full-Stack", "AI", "Distributed Systems", "Security",
+              "Engineering Intelligence At Scale", "From Idea → Deployment", "Agentic AI", "RAG", "Automation", "DevSecOps", "Cybersecurity", "Engineering Real-World Systems", "Full-Stack", "AI", "Distributed Systems", "Security",
             ].map((t, i) => (
               <div className="og-ticker-item" key={i}>
                 <span className="og-ticker-dot" />{t}
