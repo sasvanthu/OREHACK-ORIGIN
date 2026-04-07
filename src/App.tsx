@@ -167,13 +167,23 @@ const App = () => {
         {/* The permanent low-opacity watermark */}
         <LogoBackgroundWatermark imgRef={logoRef} />
         {/* The cinematic loading screen (unmounts after it finishes) */}
-        <LoadingScreen onReveal={() => setIsRevealed(true)} />
+        <LoadingScreen onReveal={() => {
+          console.log('Loading screen reveal triggered');
+          setIsRevealed(true);
+        }} />
 
         <SmoothCursor />
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <div className={isRevealed ? 'site-ready' : ''} style={{ opacity: isRevealed ? undefined : 0 }}>
+          <div 
+            className={isRevealed ? 'site-ready' : ''} 
+            style={{ 
+              opacity: isRevealed ? 1 : 0,
+              transition: 'opacity 0.5s ease-in',
+              minHeight: '100vh'
+            }}
+          >
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/hackathon/:hackathonId/login" element={<HackathonLogin />} />
