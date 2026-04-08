@@ -13,8 +13,10 @@ import HackathonLogin from "./pages/HackathonLogin";
 import SubmissionPage from "./pages/SubmissionPage";
 import Leaderboard from "./pages/Leaderboard";
 import AdminAuth from "./pages/AdminAuth";
-import HackathonAdminDashboard from "./pages/HackathonAdminDashboard";
+import HackathonAdminUnderDevelopment from "./pages/HackathonAdminUnderDevelopment";
 import DeveloperAdminDashboard from "./pages/DeveloperAdminDashboard";
+import CreateHackathon from "./pages/CreateHackathon";
+import OriginAdmin from "./pages/OriginAdmin";
 import { LoadingScreen } from "./components/LoadingScreen";
 
 const queryClient = new QueryClient();
@@ -147,27 +149,58 @@ const App = () => {
     };
   }, []);
 
+  // Listen for the "Enter Portal" turbo event fired from ActiveHackathons
+  useEffect(() => {
+    let resetTimer: ReturnType<typeof setTimeout>;
+    const onTurbo = () => {
+      if (!logoRef.current) return;
+      logoRef.current.classList.add('site-logo-bg--turbo');
+      clearTimeout(resetTimer);
+      // Revert to slow spin after 4 s (enough time to navigate away)
+      resetTimer = setTimeout(() => {
+        logoRef.current?.classList.remove('site-logo-bg--turbo');
+      }, 4000);
+    };
+    window.addEventListener('logoTurbo', onTurbo);
+    return () => {
+      window.removeEventListener('logoTurbo', onTurbo);
+      clearTimeout(resetTimer);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {/* The permanent low-opacity watermark */}
         <LogoBackgroundWatermark imgRef={logoRef} />
         {/* The cinematic loading screen (unmounts after it finishes) */}
-        <LoadingScreen onReveal={() => setIsRevealed(true)} />
+        <LoadingScreen onReveal={() => {
+          console.log('Loading screen reveal triggered');
+          setIsRevealed(true);
+        }} />
 
         <SmoothCursor />
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <div className={isRevealed ? 'site-ready' : ''} style={{ opacity: isRevealed ? undefined : 0 }}>
+          <div 
+            className={isRevealed ? 'site-ready' : ''} 
+            style={{ 
+              opacity: isRevealed ? 1 : 0,
+              transition: 'opacity 0.5s ease-in',
+              minHeight: '100vh'
+            }}
+          >
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/hackathon/:hackathonId/login" element={<HackathonLogin />} />
               <Route path="/hackathon/:hackathonId/submit" element={<SubmissionPage />} />
               <Route path="/hackathon/:hackathonId/leaderboard" element={<Leaderboard />} />
               <Route path="/admin/auth" element={<AdminAuth />} />
-              <Route path="/admin/hackathon" element={<HackathonAdminDashboard />} />
+              <Route path="/admin/hackathon" element={<HackathonAdminUnderDevelopment />} />
+              <Route path="/admin/hackathon/create" element={<CreateHackathon />} />
               <Route path="/admin/developer" element={<DeveloperAdminDashboard />} />
+              <Route path="/originadmin" element={<OriginAdmin />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

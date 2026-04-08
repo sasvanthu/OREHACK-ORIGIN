@@ -5,36 +5,12 @@ import { useNavigate } from "react-router-dom";
    DATA
 ═══════════════════════════════════════════════════════════ */
 const hackathons = [
-  {
-    id: "origin-2k26",
-    name: "Origin 2K26",
-    status: "Live",
-    participants: 128,
-    deadline: "March 15, 2026",
-    bounty: "$2,500",
-    stack: ["Python", "LLM", "FastAPI"],
-    sparkline: [4, 7, 5, 9, 12, 8, 15, 11, 18, 14, 20, 16],
-  },
-  {
-    id: "buildcore-v3",
-    name: "BuildCore v3",
-    status: "Upcoming",
-    participants: 0,
-    deadline: "April 5, 2026",
-    bounty: "$1,800",
-    stack: ["Rust", "WebAssembly", "Go"],
-    sparkline: [2, 2, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6],
-  },
-  {
-    id: "devstrike-24",
-    name: "DevStrike '24",
-    status: "Completed",
-    participants: 256,
-    deadline: "Ended",
-    bounty: "$3,000",
-    stack: ["TypeScript", "React", "Solidity"],
-    sparkline: [12, 18, 14, 20, 16, 22, 18, 15, 10, 6, 3, 1],
-  },
+  { id: "origin-2k26", name: "Origin 2K26", status: "Live", participants: 413, deadline: "10th April 10.00 am" },
+  { id: "buildcore-v3", name: "BuildCore v3", status: "Upcoming", participants: 0, deadline: "3rd May 11.15 am" },
+  { id: "devstrike-24", name: "DevStrike '24", status: "Completed", participants: 256, deadline: "Ended" },
+  { id: "codeblitz-1", name: "CodeBlitz 1.0", status: "Upcoming", participants: 190, deadline: "9th May 4.40 pm" },
+  { id: "simats-open", name: "SIMATS Open Challenge", status: "Live", participants: 275, deadline: "17th May 8.20 pm" },
+  { id: "hackfest-2026", name: "HackFest 2026", status: "Upcoming", participants: 142, deadline: "26th May 2.55 pm" },
 ];
 
 const STATUS = {
@@ -187,18 +163,22 @@ function ExplodingCard({ h, assembled, active }: CardProps) {
       {/* ── CARD CONTENT ── */}
       <div
         onClick={() => {
-          if (h.status === "Live" && assembled) {
-            window.dispatchEvent(new Event("logoTurbo"));
-            navigate(`/hackathon/${h.id}/login`);
+          if (assembled) {
+            window.dispatchEvent(new Event('logoTurbo'));
+            if (h.id === "origin-2k26") {
+              navigate(`/hackathon/${h.id}/login`);
+            } else {
+              navigate("/admin/auth");
+            }
           }
         }}
         style={{
           position: "relative",
           zIndex: 10,
           height: "100%",
-          padding: "1.6rem 1.75rem 1.5rem",
-          borderRadius: "1.1rem",
-          cursor: h.status === "Live" ? "pointer" : "default",
+          padding: "2rem 2rem 1.75rem",
+          borderRadius: "1rem",
+          cursor: assembled ? "pointer" : "default",
           opacity: assembled ? 1 : 0,
           transition: "opacity 0.35s ease 0.55s",
           display: "flex",
@@ -241,69 +221,28 @@ function ExplodingCard({ h, assembled, active }: CardProps) {
           <StatRow label="Deadline" value={h.deadline} color={sc.card} />
         </div>
 
-        {/* ── SPARKLINE + BOUNTY ROW ── */}
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "0.75rem" }}>
-          <div>
-            <p style={{ fontSize: "0.6rem", color: "hsl(218 11% 45%)", letterSpacing: "0.1em", marginBottom: "0.3rem" }}>
-              ACTIVITY · 24H
-            </p>
-            <Sparkline data={h.sparkline} color={sc.card} />
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <p style={{ fontSize: "0.6rem", color: "hsl(218 11% 45%)", letterSpacing: "0.1em", marginBottom: "0.3rem" }}>
-              BOUNTY
-            </p>
-            <span style={{
-              fontSize: "0.85rem", fontWeight: 800, color: sc.card,
-              background: sc.bg, border: `1px solid ${sc.border}`,
-              padding: "0.2rem 0.65rem", borderRadius: "9999px",
-              letterSpacing: "-0.01em",
-            }}>
-              {h.bounty}
-            </span>
-          </div>
+        {/* CTA */}
+        <div style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          fontSize: "0.875rem",
+          fontWeight: 600,
+          color: sc.card,
+          padding: "0.65rem 1.25rem",
+          borderRadius: "0.6rem",
+          border: `1px solid ${sc.border}`,
+          background: sc.bg,
+          width: "fit-content",
+          transition: "box-shadow 0.3s, transform 0.2s",
+        }}
+          className="hackathon-cta"
+        >
+          Enter Portal
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
         </div>
-
-        {/* ── STACK TAGS ── */}
-        <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", minHeight: "1.8rem" }}>
-          {h.stack.map(tag => (
-            <span key={tag} style={{
-              fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.06em",
-              padding: "0.18rem 0.55rem", borderRadius: "9999px",
-              background: "hsl(217 33% 18% / 0.8)", border: "1px solid hsl(217 33% 26%)",
-              color: "hsl(218 11% 65%)",
-            }}>
-              {tag}
-            </span>
-          ))}
-        </div>
-
-        {/* ── CTA: Enter Portal (scan-beam effect) ── */}
-        {h.status === "Live" && (
-          <div
-            className="hackathon-cta"
-            style={{
-              display: "inline-flex", alignItems: "center", gap: "0.5rem",
-              fontSize: "0.82rem", fontWeight: 700,
-              color: sc.card,
-              padding: "0.6rem 1.2rem",
-              borderRadius: "0.5rem",
-              border: `1px solid ${sc.border}`,
-              background: sc.bg,
-              width: "fit-content",
-              position: "relative",
-              overflow: "hidden",
-              transition: "all 0.3s ease",
-              letterSpacing: "0.04em",
-            }}
-          >
-            <span className="scan-beam" />
-            Enter Portal
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -330,7 +269,9 @@ export default function ActiveHackathons() {
   const progressBarRef = useRef<HTMLDivElement>(null);
   const [hoveredDot, setHoveredDot] = useState<number | null>(null);
 
-  const [assembled, setAssembled] = useState<boolean[]>([false, false, false]);
+  // Which cards have assembled
+  const [assembled, setAssembled] = useState<boolean[]>(() => hackathons.map(() => false));
+  // Active card index (for scale/glow)
   const [activeIdx, setActiveIdx] = useState(0);
 
   const assembledRef = useRef(assembled);

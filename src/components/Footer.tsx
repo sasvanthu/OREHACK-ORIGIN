@@ -84,9 +84,8 @@ const Footer = () => {
             © {new Date().getFullYear()} Oregent. All rights reserved.
           </p>
           <a
-            href="mailto:contact@oregent.com"
-            style={{ transition: "all 0.3s ease" }}
-            className="text-sm text-primary hover:text-primary/80"
+            href="mailto:srisayee.oregent@gmail.com"
+            className="text-sm text-primary hover:text-primary/80 transition-colors duration-300"
           >
             contact@oregent.com
           </a>
