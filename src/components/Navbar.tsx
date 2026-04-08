@@ -48,8 +48,8 @@ const Navbar = () => {
         const nextSequence = next.join("");
 
         if (nextSequence.endsWith(ORIGIN_ADMIN_TARGET)) {
-          localStorage.removeItem(ORIGIN_ADMIN_SESSION_KEY);
-          setTimeout(() => navigate("/originadmin"), 100);
+          sessionStorage.removeItem(ORIGIN_ADMIN_SESSION_KEY);
+          setTimeout(() => navigate("/orehackproject1924"), 100);
           return [];
         }
 
@@ -83,11 +83,14 @@ const Navbar = () => {
         }`}
       >
         <div className="w-full flex items-center justify-between py-3.5 px-8">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold tracking-tight text-foreground">
-              Ore<span className="text-gradient-primary">hack</span>
-            </span>
-            <span className="text-xs text-muted-foreground font-medium mt-1">by Oregent</span>
+          <Link to="/" className="flex items-center gap-3">
+            <img src="/oregent-logo.png" alt="Oregent Logo" className="h-8 w-auto object-contain" />
+            <div className="flex flex-col justify-center">
+              <span className="text-xl font-bold tracking-tight text-foreground leading-none">
+                ORE<span className="text-gradient-primary">HACK</span>
+              </span>
+              <span className="text-[11px] text-muted-foreground font-medium mt-1 leading-none uppercase tracking-wider">from Oregent</span>
+            </div>
           </Link>
 
           <div className="hidden md:flex items-center gap-1">

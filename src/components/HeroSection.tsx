@@ -56,39 +56,65 @@ const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
-            className="text-sm md:text-base text-muted-foreground/70 max-w-lg leading-relaxed"
+            className="text-sm md:text-base text-muted-foreground/70 max-w-lg leading-relaxed font-mono tracking-tight"
           >
             Engineered by Oregent to process and validate competitive builds
             through structured intelligence.
           </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.45, ease: "easeOut" }}
-            className="pt-2"
-          >
-            <button
-              onClick={scrollToHackathons}
-              style={{ transition: "all 0.3s ease" }}
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm tracking-wide glow-primary hover:bg-[#9333ea] hover:text-white hover:shadow-[0_0_25px_rgba(147,51,234,0.5)] hover:-translate-y-1"
-            >
-              View Active Hackathons
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+            <div className="flex items-center gap-4 pt-2">
+              <button
+                onClick={scrollToHackathons}
+                className="group relative inline-flex items-center gap-3 px-7 py-3.5 rounded-xl font-semibold text-sm tracking-wide overflow-hidden"
+                style={{ transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)" }}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
+                {/* Animated conic border */}
+                <span
+                  className="pointer-events-none absolute -inset-[1px] rounded-xl"
+                  style={{
+                    background: "conic-gradient(from 0deg, #7c3aed, #a855f7, #ec4899, #7c3aed)",
+                    animation: "spin 3s linear infinite",
+                    opacity: 0.85,
+                  }}
                 />
-              </svg>
-            </button>
-          </motion.div>
+                {/* Inner fill */}
+                <span className="absolute inset-[1.5px] rounded-[10px] bg-[#0b0713]" style={{ transition: "background 0.3s ease" }} />
+                {/* Shimmer sweep */}
+                <span
+                  className="pointer-events-none absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100"
+                  style={{
+                    background: "linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.12) 50%, transparent 80%)",
+                    backgroundSize: "200% 100%",
+                    animation: "shimmerBtn 1.4s ease infinite",
+                    transition: "opacity 0.3s ease",
+                  }}
+                />
+                {/* Text & icon */}
+                <span className="relative z-10 text-white flex items-center gap-2">
+                  <span
+                    className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"
+                    style={{ boxShadow: "0 0 6px rgba(52,211,153,0.9)", animation: "pulse 1.8s ease-in-out infinite" }}
+                  />
+                  View Active Hackathons
+                  <svg
+                    className="w-4 h-4 transition-transform duration-300 group-hover:translate-y-0.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </button>
+            </div>
+            <style>{`
+              @keyframes spin { to { transform: rotate(360deg); } }
+              @keyframes shimmerBtn {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+              }
+            `}</style>
         </div>
 
         {/* Right — 3D Canvas */}
