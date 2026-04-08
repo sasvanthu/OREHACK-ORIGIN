@@ -731,6 +731,59 @@ export default function AboutOregent() {
     };
   }, []);
 
+  /* ── High-sensitivity Scroll Snap (Splash Effect) ── */
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+
+    let isSnapping = false;
+    let snapTimeout: ReturnType<typeof setTimeout>;
+
+    const handleScrollSnap = (deltaY: number) => {
+      if (isSnapping) return;
+      const rect = section.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+
+      // If scrolling down AND the top of the section is coming into the viewport (bottom 60%)
+      if (deltaY > 0 && rect.top <= windowHeight && rect.top > windowHeight * 0.15) {
+        isSnapping = true;
+        const absoluteTop = rect.top + window.scrollY;
+        
+        // Use smooth scrollTo to snap the view
+        window.scrollTo({
+          top: absoluteTop,
+          behavior: 'smooth'
+        });
+
+        // 1.5s cooldown to let the smooth scroll finish
+        snapTimeout = setTimeout(() => {
+          isSnapping = false;
+        }, 1200);
+      }
+    };
+
+    const onWheel = (e: WheelEvent) => handleScrollSnap(e.deltaY);
+    
+    let touchStartY = 0;
+    const onTouchStart = (e: TouchEvent) => { touchStartY = e.touches[0].clientY; };
+    const onTouchMove = (e: TouchEvent) => {
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchStartY - touchY; // positive = scrolling down
+      handleScrollSnap(deltaY);
+    };
+
+    window.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+
+    return () => {
+      clearTimeout(snapTimeout);
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+    };
+  }, []);
+
   /* ── Code block (Card A) - dynamic character typing ── */
   useEffect(() => {
     let alive = true;

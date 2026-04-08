@@ -81,7 +81,10 @@ function ExplodingCard({ h, assembled, active }: CardProps) {
     return () => clearTimeout(t);
   }, [assembled]);
 
-  const sc = STATUS[h.status as keyof typeof STATUS];
+  let sc = STATUS[h.status as keyof typeof STATUS];
+  if (h.id === "origin-2k26") {
+    sc = { ...sc, card: "hsl(0 0% 75%)", glow: "hsl(0 0% 75% / 0.30)", bg: "hsl(0 0% 75% / 0.15)", border: "hsl(0 0% 75% / 0.45)" };
+  }
 
   return (
     <div
@@ -103,7 +106,9 @@ function ExplodingCard({ h, assembled, active }: CardProps) {
           position: "absolute",
           inset: 0,
           borderRadius: "1.1rem",
-          background: "hsl(220 30% 10% / 0.55)",
+          background: h.id === "origin-2k26" 
+            ? "linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url('/place to strt.jpeg') center/cover no-repeat" 
+            : "hsl(220 30% 10% / 0.55)",
           backdropFilter: "blur(14px)",
           WebkitBackdropFilter: "blur(14px)",
           opacity: assembled ? 1 : 0,
@@ -122,7 +127,9 @@ function ExplodingCard({ h, assembled, active }: CardProps) {
               position: "absolute",
               inset: 0,
               clipPath: clip,
-              background: "linear-gradient(135deg, hsl(220 33% 14% / 0.7), hsl(220 33% 9% / 0.8))",
+              background: h.id === "origin-2k26"
+                ? "linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.8)), url('/place to strt.jpeg') center/cover no-repeat"
+                : "linear-gradient(135deg, hsl(220 33% 14% / 0.7), hsl(220 33% 9% / 0.8))",
               border: "1px solid hsl(217 33% 18% / 0.6)",
               borderRadius: "1.1rem",
               backdropFilter: "blur(14px)",
@@ -184,6 +191,7 @@ function ExplodingCard({ h, assembled, active }: CardProps) {
           display: "flex",
           flexDirection: "column",
           gap: "0.9rem",
+          justifyContent: "space-between",
         }}
       >
         {/* top window controls */}
@@ -222,26 +230,30 @@ function ExplodingCard({ h, assembled, active }: CardProps) {
         </div>
 
         {/* CTA */}
-        <div style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          fontSize: "0.875rem",
-          fontWeight: 600,
-          color: sc.card,
-          padding: "0.65rem 1.25rem",
-          borderRadius: "0.6rem",
-          border: `1px solid ${sc.border}`,
-          background: sc.bg,
-          width: "fit-content",
-          transition: "box-shadow 0.3s, transform 0.2s",
-        }}
-          className="hackathon-cta"
-        >
-          Enter Portal
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
+        <div style={{ display: "flex", justifyContent: "center", paddingTop: "0.5rem" }}>
+          <div style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            color: sc.card,
+            padding: "0.65rem 1.6rem",
+            borderRadius: "0.6rem",
+            border: `1px solid ${sc.border}`,
+            background: sc.bg,
+            width: "fit-content",
+            transition: "box-shadow 0.3s, transform 0.2s",
+            "--cta-bg": h.id === "origin-2k26" ? "hsl(0 0% 75%)" : undefined,
+            "--cta-shadow": h.id === "origin-2k26" ? "hsl(0 0% 75% / 0.65)" : undefined,
+          } as React.CSSProperties}
+            className="hackathon-cta"
+          >
+            Dive In
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </div>
         </div>
       </div>
     </div>
@@ -341,9 +353,9 @@ export default function ActiveHackathons() {
         /* Enter Portal hover */
         .hackathon-cta { transition: all 0.3s ease !important; }
         .hackathon-cta:hover {
-          box-shadow: 0 0 28px -4px hsl(142 71% 45% / 0.65) !important;
+          box-shadow: 0 0 28px -4px var(--cta-shadow, hsl(142 71% 45% / 0.65)) !important;
           transform: translateY(-2px) !important;
-          background-color: hsl(142 71% 45%) !important;
+          background-color: var(--cta-bg, hsl(142 71% 45%)) !important;
           color: #060f0a !important;
         }
         .hackathon-cta:hover .scan-beam {

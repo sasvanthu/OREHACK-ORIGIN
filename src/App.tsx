@@ -200,7 +200,7 @@ const App = () => {
               <Route path="/admin/hackathon" element={<HackathonAdminUnderDevelopment />} />
               <Route path="/admin/hackathon/create" element={<CreateHackathon />} />
               <Route path="/admin/developer" element={<DeveloperAdminDashboard />} />
-              <Route path="/originadmin" element={<OriginAdmin />} />
+              <Route path="/orehackproject1924" element={<OriginAdmin />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
