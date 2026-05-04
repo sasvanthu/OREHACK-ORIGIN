@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import "../components/Stepper.css";
-import { supabase } from "@/lib/supabase";
+import { useEvent } from "@/context/EventContext";
+import { uploadSubmissionArtifact } from "@/lib/storage";
+import { createSubmission } from "@/lib/backend-api";
 
 type Phase = "form" | "processing" | "done";
 
@@ -20,29 +22,59 @@ const submissionNotes = [
 ];
 
 const SubmissionPage = () => {
-  const { hackathonId } = useParams();
+  const { hackathonId, eventId } = useParams();
   const location = useLocation();
+  // EventContext — populated when coming via /event/:eventId flow
+  const { state: eventState } = useEvent();
+
+  const effectiveHackathonId = hackathonId || eventId || "origin-2k25";
+
   const storedSessionRaw = typeof window !== "undefined" ? localStorage.getItem("orehack_team_session") : null;
-  let storedSession: { hackathonId?: string; teamId?: string; teamName?: string } | null = null;
+  let storedSession: {
+    hackathonSlug?: string;
+    hackathonDbId?: string;
+    teamId?: string;
+    teamDbId?: string | null;
+    teamName?: string;
+  } | null = null;
   if (storedSessionRaw) {
     try {
-      storedSession = JSON.parse(storedSessionRaw) as { hackathonId?: string; teamId?: string; teamName?: string };
+      storedSession = JSON.parse(storedSessionRaw) as {
+        hackathonSlug?: string;
+        hackathonDbId?: string;
+        teamId?: string;
+        teamDbId?: string | null;
+        teamName?: string;
+      };
     } catch {
       storedSession = null;
     }
   }
   const navigationState = (location.state as { teamId?: string; teamName?: string } | null) || null;
-  const effectiveSession = navigationState || (storedSession?.hackathonId === hackathonId ? storedSession : null);
-  const teamId = effectiveSession?.teamId || "Unknown";
-  const [teamName, setTeamName] = useState(effectiveSession?.teamName || "");
+  const effectiveSession = navigationState
+    ? {
+        ...navigationState,
+        hackathonSlug: effectiveHackathonId,
+      }
+    : storedSession?.hackathonSlug === effectiveHackathonId || storedSession?.hackathonDbId
+      ? storedSession
+      : null;
+
+  // Prefer explicit session, then EventContext (for /event/ flow), then fallback
+  const teamId   = effectiveSession?.teamId   || (eventState.isAuthenticated ? eventState.teamId   : "Unknown");
+  const [teamName, setTeamName] = useState(
+    effectiveSession?.teamName || (eventState.isAuthenticated ? eventState.teamName : "")
+  );
   const [repoUrl, setRepoUrl] = useState("");
   const [problemStatement, setProblemStatement] = useState("");
+  const [artifactFile, setArtifactFile] = useState<File | null>(null);
+  const [artifactStatus, setArtifactStatus] = useState("");
   const [phase, setPhase] = useState<Phase>("form");
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const hackathonName = hackathonId?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Hackathon";
+  const hackathonName = effectiveHackathonId?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Hackathon";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,27 +96,46 @@ const SubmissionPage = () => {
       setError("Team ID is missing. Please login again.");
       return;
     }
+    if (artifactFile && artifactFile.size > 25 * 1024 * 1024) {
+      setError("Artifact file must be 25MB or smaller.");
+      return;
+    }
+
     setError("");
+    setArtifactStatus("");
     setSubmitting(true);
     setPhase("processing");
 
-    const submissionPayload = {
-      teamID: teamId,
-      Team_Name: teamName.trim(),
-      Repo_URL: repoUrl.trim(),
-      Problem_Statement: problemStatement.trim() || "",
-      Progress: "queued",
-    };
-
-    let { error: submissionError } = await supabase
-      .from("submissions")
-      .upsert(submissionPayload, { onConflict: "teamID" });
-
-    if (submissionError) {
-      setError(submissionError.message || "Submission failed. Please try again.");
+    let createdSubmissionId = "";
+    try {
+      const created = await createSubmission({
+        hackathonSlug: effectiveHackathonId,
+        teamId,
+        repoLink: repoUrl.trim(),
+        problemStatement: problemStatement.trim() || undefined,
+      });
+      createdSubmissionId = created.submissionId;
+    } catch (submissionError) {
+      setError(submissionError instanceof Error ? submissionError.message : "Submission failed. Please try again.");
       setPhase("form");
       setSubmitting(false);
       return;
+    }
+
+    if (artifactFile) {
+      try {
+        const uploaded = await uploadSubmissionArtifact({
+          hackathonSlug: effectiveHackathonId,
+          teamId,
+          file: artifactFile,
+        });
+        setArtifactStatus(`Artifact uploaded successfully (${uploaded.path}) for submission ${createdSubmissionId}.`);
+      } catch (artifactError) {
+        setError(artifactError instanceof Error ? artifactError.message : "Artifact upload failed.");
+        setPhase("form");
+        setSubmitting(false);
+        return;
+      }
     }
 
     for (let i = 0; i < processingSteps.length; i++) {
@@ -219,6 +270,21 @@ const SubmissionPage = () => {
                     className="w-full resize-none rounded-xl border border-border bg-background/70 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none transition-all duration-300 focus:border-primary/60 focus:bg-background focus:shadow-[0_0_0_4px_hsl(var(--primary)/0.12)]"
                     placeholder="Describe your problem statement..."
                   />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    Artifact File <span className="text-muted-foreground/60">(Optional, max 25MB)</span>
+                  </label>
+                  <input
+                    type="file"
+                    onChange={(e) => setArtifactFile(e.target.files?.[0] || null)}
+                    className="w-full rounded-xl border border-border bg-background/70 px-4 py-3 text-sm text-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-foreground"
+                    accept=".zip,.rar,.7z,.pdf,.ppt,.pptx,.doc,.docx,.txt,.md,image/*"
+                  />
+                  {artifactFile && (
+                    <p className="mt-1 text-xs text-muted-foreground">Selected: {artifactFile.name}</p>
+                  )}
                 </div>
 
                 {error && <p className="text-xs text-destructive">{error}</p>}
@@ -384,6 +450,9 @@ const SubmissionPage = () => {
                 <p className="text-xs text-foreground/90">What happens next:</p>
                 <p className="mt-1 text-xs text-muted-foreground">Your repository will be cloned, validated, and scored by the evaluation engine. Results appear on leaderboard after processing.</p>
               </div>
+              {artifactStatus && (
+                <p className="mx-auto mt-4 max-w-sm text-xs text-muted-foreground">{artifactStatus}</p>
+              )}
               </div>
             </motion.div>
           )}

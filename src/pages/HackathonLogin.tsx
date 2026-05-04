@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+import { loginTeam, setTeamToken } from "@/lib/backend-api";
 
 const HackathonLogin = () => {
   const { hackathonId } = useParams();
@@ -37,66 +37,60 @@ const HackathonLogin = () => {
     setLoading(true);
     setAuthState("checking");
 
-    const { data: submission, error: loginError } = await supabase
-      .from("submissions")
-      .select("teamID, Team_Name, password")
-      .eq("teamID", normalizedTeamId)
-      .maybeSingle();
-
-    if (loginError) {
-      setError(loginError.message || "Login failed. Please try again.");
+    if (!hackathonId) {
+      setError("Hackathon not found.");
       setAuthState("idle");
       setLoading(false);
       setShakeTick((prev) => prev + 1);
       return;
     }
 
-    if (!submission) {
-      setError("Invalid Team ID, Team Name, or password.");
+    let resolvedTeamId = normalizedTeamId;
+    let resolvedTeamDbId: string | null = null;
+    let resolvedTeamName = normalizedTeamName;
+
+    try {
+      const response = await loginTeam(
+        hackathonId,
+        normalizedTeamId,
+        normalizedTeamName,
+        normalizedPassword,
+      );
+      setTeamToken(response.token);
+      resolvedTeamId = response.team.teamId;
+      resolvedTeamDbId = response.team.id;
+      resolvedTeamName = response.team.teamName;
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Login failed. Please try again.");
       setAuthState("idle");
       setLoading(false);
       setShakeTick((prev) => prev + 1);
       return;
     }
 
-    const dbTeamName = ((submission.Team_Name as string | undefined) || "").trim();
-    const dbPassword = ((submission.password as string | undefined) || "").trim();
-
-    if (dbTeamName.toLowerCase() !== normalizedTeamName.toLowerCase()) {
-      setError("Team name does not match this Team ID.");
-      setAuthState("idle");
-      setLoading(false);
-      setShakeTick((prev) => prev + 1);
-      return;
-    }
-
-    if (dbPassword !== normalizedPassword) {
-      setError("Password does not match this Team ID.");
-      setAuthState("idle");
-      setLoading(false);
-      setShakeTick((prev) => prev + 1);
-      return;
-    }
-
-    const resolvedTeamId =
-      (submission.teamID as string | undefined) || normalizedTeamId;
-    const resolvedTeamName = dbTeamName || normalizedTeamName;
-
-    await supabase
-      .from("submissions")
-      .update({ Team_Name: resolvedTeamName })
-      .eq("teamID", resolvedTeamId);
+    // Login no longer mutates submissions in the new schema.
 
     await new Promise((r) => setTimeout(r, 700));
     setAuthState("granted");
     await new Promise((r) => setTimeout(r, 1900));
     localStorage.setItem(
       "orehack_team_session",
-      JSON.stringify({ hackathonId, teamId: resolvedTeamId, teamName: resolvedTeamName }),
+      JSON.stringify({
+        hackathonSlug: hackathonId,
+        hackathonDbId: null,
+        teamId: resolvedTeamId,
+        teamDbId: resolvedTeamDbId,
+        teamName: resolvedTeamName,
+      }),
     );
     setLoading(false);
     navigate(`/hackathon/${hackathonId}/submit`, {
-      state: { teamId: resolvedTeamId, teamName: resolvedTeamName },
+      state: {
+        teamId: resolvedTeamId,
+        teamDbId: resolvedTeamDbId,
+        teamName: resolvedTeamName,
+        hackathonDbId: null,
+      },
     });
   };
 

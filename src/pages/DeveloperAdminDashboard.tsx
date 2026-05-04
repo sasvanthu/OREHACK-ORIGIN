@@ -29,6 +29,10 @@ import {
   Zap,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import {
+  clearAdminSession,
+  readLegacyAdminSession,
+} from "@/lib/dashboard-routing";
 
 const tabs = ["System", "Hackathons", "Evaluation", "Logs"] as const;
 
@@ -158,41 +162,17 @@ const DeveloperAdminDashboard = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check Supabase session
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (!session) {
-          // Check encrypted localStorage session
-          const encryptedSession = localStorage.getItem("admin_session");
-          if (!encryptedSession) {
-            navigate("/admin/auth");
-            return;
-          }
-
-          try {
-            const sessionData = JSON.parse(atob(encryptedSession));
-            // Check if session is still valid (24 hours)
-            if (Date.now() - sessionData.timestamp > 24 * 60 * 60 * 1000) {
-              localStorage.removeItem("admin_session");
-              navigate("/admin/auth");
-              return;
-            }
-            
-            // Additional verification with hash
-            if (!sessionData.hash || sessionData.hash.length !== 16) {
-              localStorage.removeItem("admin_session");
-              navigate("/admin/auth");
-              return;
-            }
-          } catch (e) {
-            localStorage.removeItem("admin_session");
-            navigate("/admin/auth");
-            return;
-          }
+        const legacySession = readLegacyAdminSession();
+        if (!legacySession) {
+          navigate("/admin/auth");
+          return;
         }
-        
+
+        if (legacySession.role !== "developer_admin") {
+          navigate("/admin/auth");
+          return;
+        }
+
         setIsAuthChecking(false);
       } catch (error) {
         navigate("/admin/auth");
@@ -205,12 +185,12 @@ const DeveloperAdminDashboard = () => {
   const loadDashboardData = useCallback(async () => {
     setSyncError("");
 
-    const [hackathonsRes, usersRes] = await Promise.all([
+    const [hackathonsRes, teamsRes] = await Promise.all([
       supabase
         .from("hackathons")
-        .select("name, slug, theme, start_date, duration_hours, status")
+        .select("name, slug, theme, start_time, duration_hours, status, total_submissions, total_evaluated")
         .order("created_at", { ascending: false }),
-      supabase.from("users").select("id", { count: "exact", head: true }),
+      supabase.from("teams").select("id", { count: "exact", head: true }),
     ]);
 
     if (hackathonsRes.error) {
@@ -227,10 +207,10 @@ const DeveloperAdminDashboard = () => {
           name: hackathon.name || "Untitled Hackathon",
           slug: hackathon.slug || slugify(hackathon.name || "hackathon"),
           theme: hackathon.theme || "General",
-          startDate: hackathon.start_date || "",
+          startDate: hackathon.start_time || "",
           durationHours: Number(hackathon.duration_hours || 24),
-          submissions: 0,
-          evaluated: 0,
+          submissions: Number(hackathon.total_submissions || 0),
+          evaluated: Number(hackathon.total_evaluated || 0),
           status: hackathon.status === "scheduled" ? "scheduled" : "live",
         };
       },
@@ -239,10 +219,12 @@ const DeveloperAdminDashboard = () => {
     setHackathons(
       mappedHackathons.length ? mappedHackathons : defaultHackathons,
     );
-    setUserCount(usersRes.count || 0);
+    setUserCount(teamsRes.count || 0);
   }, []);
 
   useEffect(() => {
+    if (isAuthChecking) return;
+
     loadDashboardData();
 
     const channel = supabase
@@ -259,7 +241,7 @@ const DeveloperAdminDashboard = () => {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "users" },
+        { event: "*", schema: "public", table: "teams" },
         loadDashboardData,
       )
       .subscribe();
@@ -267,7 +249,7 @@ const DeveloperAdminDashboard = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadDashboardData]);
+  }, [loadDashboardData, isAuthChecking]);
 
   const hackathonStatsData = useMemo(
     () =>
@@ -316,7 +298,7 @@ const DeveloperAdminDashboard = () => {
     {
       label: "Registered Users",
       value: String(userCount),
-      delta: "Live from users database",
+      delta: "Live from teams database",
       progress: Math.min(100, userCount ? 40 + userCount : 25),
       icon: Activity,
       tone: "from-emerald-500/25 via-emerald-500/10 to-transparent",
@@ -345,11 +327,11 @@ const DeveloperAdminDashboard = () => {
       name: newHackathon.name.trim(),
       slug,
       theme: newHackathon.theme.trim() || "General",
-      start_date: newHackathon.startDate || null,
+      start_time: newHackathon.startDate ? new Date(newHackathon.startDate).toISOString() : new Date().toISOString(),
       duration_hours: Number(newHackathon.durationHours || 24),
       status: "live",
-      submissions: 0,
-      evaluated: 0,
+      total_submissions: 0,
+      total_evaluated: 0,
     });
 
     if (error) {
@@ -367,15 +349,8 @@ const DeveloperAdminDashboard = () => {
   };
 
   const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      localStorage.removeItem("admin_session");
-      navigate("/admin/auth");
-    } catch (error) {
-      // Force logout even if signOut fails
-      localStorage.removeItem("admin_session");
-      navigate("/admin/auth");
-    }
+    clearAdminSession();
+    navigate("/admin/auth");
   };
 
   if (isAuthChecking) {

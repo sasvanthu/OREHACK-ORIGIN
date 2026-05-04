@@ -1,14 +1,21 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { loginAdmin, setAdminToken } from "@/lib/backend-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Lock, Eye, EyeOff } from "lucide-react";
+import {
+  clearAdminSession,
+  normalizeDashboardRole,
+  resolveAdminRoute,
+  storeAdminSession,
+} from "@/lib/dashboard-routing";
 
 const AdminAuth = () => {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,44 +28,29 @@ const AdminAuth = () => {
     setError("");
 
     try {
-      // Hash the password client-side for additional encryption
-      const encoder = new TextEncoder();
-      const encodedPassword = encoder.encode(password);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", encodedPassword);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashedPassword = hashArray
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
+      const data = await loginAdmin(email.trim(), password);
+      const resolvedRole = normalizeDashboardRole(data.admin.role);
+      const roleRoute = resolveAdminRoute(resolvedRole);
 
-      // Use hashed password as the actual password for Supabase auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: "admin@orehack.com", // Fixed admin email
-        password: hashedPassword,
-      });
-
-      if (error) {
-        setError("Invalid password. Access denied.");
+      if (resolvedRole === "unknown") {
+        clearAdminSession();
+        setError("No dashboard role is assigned to this account.");
         return;
       }
 
-      if (data.user) {
-        // Store encrypted session token with additional encryption
-        const sessionData = {
-          user_id: data.user.id,
-          email: data.user.email,
-          timestamp: Date.now(),
-          hash: hashedPassword.substring(0, 16), // Store part of hash for verification
-        };
+      setAdminToken(data.token);
+      storeAdminSession({
+        userId: data.admin.id,
+        email: data.admin.email ?? null,
+        role: resolvedRole,
+        hackathonId: data.admin.hackathonSlug ?? null,
+        source: "backend",
+        createdAt: Date.now(),
+      });
 
-        // Encrypt session data
-        const sessionJson = JSON.stringify(sessionData);
-        const encryptedSession = btoa(sessionJson); // Base64 encoding as encryption
-
-        sessionStorage.setItem("admin_session", encryptedSession);
-        navigate("/admin/developer");
-      }
+      navigate(roleRoute, { replace: true });
     } catch (err) {
-      setError("Authentication failed. Please try again.");
+      setError(err instanceof Error ? err.message : "Authentication failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -119,6 +111,21 @@ const AdminAuth = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-amber-200">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@company.com"
+                className="bg-amber-500/5 border-amber-300/30 text-amber-50 placeholder:text-amber-300/50"
+                required
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="password" className="text-amber-200">
                 Admin Password
